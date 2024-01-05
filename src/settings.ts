@@ -5,42 +5,38 @@ import Cloudr from "./main"
 
 
 export interface CloudrSettings {
-	// mySetting: string;
-    // Connection
     url: string,
     username: string,
     password: string,
     webdavPath: string,
     overrideVault: string, 
-    exclusions: {directories: string[], extensions: string[], markers: string[]},
-    pullStart: boolean,
+    exclusions: {
+        directories: string[], 
+        extensions: string[], 
+        markers: string[]
+    },
 
+    pullStart: boolean,
     liveSync: boolean,
     autoSync: boolean,
     autoSyncInterval: number,
-    modifySyncInterval: number,
-    modifySync: boolean,
     enableRibbons: boolean,
 
-
-    
 }
 
 export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
-	
     url: "",
     username: "",
     password: "",
-   
     webdavPath: "",
     overrideVault: "",
     exclusions: { 
-        directories: ["node_modules", ".git", "obsidian-cloudr", "temp"], 
+        directories: ["node_modules", ".git"], 
         extensions: [], 
-        markers: [],
+        markers: ["prevdata.json"],
     },
 
-    pullStart: true,
+    pullStart: false,
     liveSync: false,
     autoSync: false,
     autoSyncInterval: 10,
