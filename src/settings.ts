@@ -28,7 +28,7 @@ export interface CloudrSettings {
 
 export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
 	
-    url: "https://",
+    url: "",
     username: "",
     password: "",
    
