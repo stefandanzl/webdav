@@ -68,7 +68,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.url = value;
                     await this.plugin.saveSettings();
-                    this.plugin.setClient()
+                    // this.plugin.setClient()
                 })
             );
 
@@ -82,7 +82,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.username = value;
                     await this.plugin.saveSettings();
-                    this.plugin.setClient()
+                    // this.plugin.setClient()
                 })
             );
 
@@ -96,16 +96,17 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.password = value;
                     await this.plugin.saveSettings();
-                    this.plugin.setClient()
+                    // this.plugin.setClient()
                 })
             );
 
         new Setting(containerEl)
-            .setName("Test Connection")
+            .setName("Apply and Test Server Config")
             .setDesc("Click Button to test Server's connection")
             .addButton((button) =>
                 button
                 .onClick(()=>{ this.plugin.test().then(()=>{
+                    this.plugin.setClient()
                     button.setButtonText(this.plugin.prevData.error ? "FAIL" : "OK");
                     // if( this.plugin.message){
                     //     // nothing yet
