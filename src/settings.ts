@@ -139,10 +139,10 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 .setPlaceholder("vaultname")
                 .setValue(this.plugin.settings.overrideVault)
                 .onChange(async (value) => {
-                    // this.plugin.settings.overrideVault = value.replace(/\\/g, '/');
+                    this.plugin.settings.overrideVault = value.replace(/\\/g, '/');
                     await this.plugin.saveSettings();
                     await this.plugin.setBaseWebdav();
-                    this.plugin.test()
+                    // this.plugin.test()
                 })
             );
 

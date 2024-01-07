@@ -73,7 +73,7 @@ export default class Cloudr extends Plugin {
 
         this.setBaseWebdav()
 
-        this.prevPath = `${this.app.vault.configDir}/plugins/obsidian-cloudr/prevdata.json`;
+        this.prevPath = `${this.app.vault.configDir}/plugins/webdav/prevdata.json`;
         // console.log(this.prevPath)
 
     if (this.settings.enableRibbons){
@@ -111,7 +111,7 @@ export default class Cloudr extends Plugin {
             }
             
             app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
-            console.error("ERROR LOADING PREVIOUS DATA! RESET prev.json to {} ")
+            console.error("ERROR LOADING PREVIOUS DATA! RESET prev.json to {error: true, files: {}} ")
         }
 
         // This adds a status bar item to the bottom of the app. Does not work on mobile apps.
@@ -540,11 +540,11 @@ setLiveSync(){
         try{
         const f = this.fileTrees
         if (button &&
-            emptyObj(f.webdavFiles.added) && 
-            emptyObj(f.webdavFiles.deleted) && 
-            emptyObj(f.webdavFiles.modified)
+            emptyObj(f.localFiles.added) && 
+            emptyObj(f.localFiles.deleted) && 
+            emptyObj(f.localFiles.modified)
         ){
-            if (emptyObj(f.webdavFiles.except)){
+            if (emptyObj(f.localFiles.except)){
                 button && this.show("Nothing to push")
                 return }
                 // else {

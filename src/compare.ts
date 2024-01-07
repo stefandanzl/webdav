@@ -211,7 +211,7 @@ compareFileTrees = async (webdavFiles, localFiles, prevFileTree={}, exclusions: 
 
 let webdavMatch, localMatch
 
-if (prevFileTree.files &&  Object.keys(prevFileTree.files).length > 0){
+if (prevFileTree.files &&  Object.keys(prevFileTree.files).length > 0 && Object.keys(webdavFiles).length > 0){
 try {
   prevFileTree.files = this.filterExclusions(prevFileTree.files, exclusions)
 
@@ -248,11 +248,25 @@ localMatch.deleted  = this.checkExistKey(localMatch.deleted, webdavFiles)
 } else {
   console.log("++ NO PREVIOUS fileTree loaded! ++")
   
-  webdavFilesBranch = {added: {...webdavFiles}};
-  localFilesBranch = {added: {...localFiles}};
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
- ({webdavMatch, localMatch} = this.compareFileTreesExcept(webdavFilesBranch, localFilesBranch))
+  if (Object.keys(webdavFiles).length === 0){
+    console.log("No Webdav files found!")
+    webdavMatch = {added:{}, deleted:{}, modified:{}, except: {}}
+    localMatch =  {added: localFiles, deleted:{}, modified:{}, except: {}}
+  } else {
+    console.log("Webdav files found")
+    const webdavFilesBranch = {added: webdavFiles, deleted:{}, modified:{}, except: {}};
+    console.log("Webdav files found",webdavFilesBranch)
+
+    const localFilesBranch = {added: localFiles, deleted:{}, modified:{}, except: {}};
+    
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+   ({webdavMatch, localMatch} = this.compareFileTreesExcept(webdavFilesBranch, localFilesBranch))
+  }
+
+
+  
+
 
 }
 
