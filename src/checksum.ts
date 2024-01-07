@@ -1,15 +1,25 @@
 // @ts-nocheck
 import {readFileSync, readdirSync, statSync} from 'fs';
-import {join, extname} from 'path';
+import { //join, 
+    extname} from 'path';
 import { createHash } from 'crypto';
 // import { writeFileSync } from 'fs';
 // import { configWebdav, findMatchingKeys } from './operations';
 import { WebDAVClient } from 'webdav';
 // import { findMatchingKeys } from './operations';
+import Cloudr from "./main"
+import {  join, // emptyObj, 
+} from './util';
 
+export class Checksum{
+  
 
+    constructor(public plugin: Cloudr){
+        this.plugin = plugin;
+    }
+  
 
-function refineObject(data, exclusions) {
+refineObject(data, exclusions) {
     const refinedObject = {};
 
     data.forEach(item => {
@@ -21,7 +31,7 @@ function refineObject(data, exclusions) {
         const isDirectory = type === 'directory';
         const fullPath = isDirectory ? filename + '/' : filename;
 
-        if (isExcluded(fullPath, exclusions)) {
+        if (this.isExcluded(fullPath, exclusions)) {
             return; // Skip excluded files and folders
         }
 
@@ -37,13 +47,13 @@ function refineObject(data, exclusions) {
     return refinedObject;
 }
 
-function calculateChecksum(filePath) {
+calculateChecksum(filePath) {
     const data = readFileSync(filePath);
     return createHash('sha1').update(data).digest('hex');
 }
 
 
-function processFolder(folderPath, checksumTable, exclusions, rootFolder) {
+processFolder(folderPath, checksumTable, exclusions, rootFolder) {
     const files = readdirSync(folderPath).sort();
     const fileChecksums = [];
 
@@ -54,16 +64,16 @@ function processFolder(folderPath, checksumTable, exclusions, rootFolder) {
         const normFilePath = filePath.slice(rootFolder.length) + (isFile ? '' : '/') 
 
         // Check exclusions
-        if (isExcluded(normFilePath, exclusions)) {
+        if (this.isExcluded(normFilePath, exclusions)) {
             continue; // Skip excluded files and folders
         }
 
         if (isFile) {
-            const fileChecksum = calculateChecksum(filePath);
+            const fileChecksum = this.calculateChecksum(filePath);
             checksumTable[filePath.slice(rootFolder.length)] = fileChecksum;
             fileChecksums.push(fileChecksum);
         } else {
-            const subFolderChecksum = processFolder(filePath, checksumTable, exclusions, rootFolder);
+            const subFolderChecksum = this.processFolder(filePath, checksumTable, exclusions, rootFolder);
             fileChecksums.push(subFolderChecksum);
             checksumTable[filePath.slice(rootFolder.length) + '/'] = ""; // subFolderChecksum;
         }
@@ -73,7 +83,7 @@ function processFolder(folderPath, checksumTable, exclusions, rootFolder) {
     return folderChecksum;
 }
 
-function isExcluded(filePath, exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) {
+isExcluded(filePath, exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) {
     const { extensions = [], directories = [], markers = [] } = exclusions;
 
     const folders = filePath.split('/');
@@ -106,7 +116,7 @@ function isExcluded(filePath, exclusions: { extensions?: string[], directories?:
     return false;
 }
 
-function removeBase(fileChecksums, basePath) {
+removeBase(fileChecksums, basePath) {
     const removedBase = {};
   
     for (const [filePath, checksum] of Object.entries(fileChecksums)) {
@@ -126,13 +136,13 @@ function removeBase(fileChecksums, basePath) {
 
 
 
-export const generateLocalHashTree = (rootFolder: string, exclusions={}) => {
+generateLocalHashTree = (rootFolder: string, exclusions={}) => {
     // const rootFolder = self.basePath;
     const checksumTable = {};
 
     
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const rootChecksum = processFolder(rootFolder, checksumTable, exclusions, rootFolder);
+    const rootChecksum = this.processFolder(rootFolder, checksumTable, exclusions, rootFolder);
     
 
     return checksumTable
@@ -140,7 +150,7 @@ export const generateLocalHashTree = (rootFolder: string, exclusions={}) => {
 
 
 // Fetch directory contents from webdav
-export const generateWebdavHashTree = async (client: WebDAVClient,rootFolder, exclusions={}) => {
+generateWebdavHashTree = async (client: WebDAVClient,rootFolder, exclusions={}) => {
 
 
     try {
@@ -153,7 +163,8 @@ export const generateWebdavHashTree = async (client: WebDAVClient,rootFolder, ex
             await client.createDirectory(rootFolder)
         }
     } catch (error){
-        console.error("ERROR: ",error)
+        console.error("ERROR: generateWebdavHashTree",error)
+        return error
     }
 
     // exclusions.directories = exclusions.directories || [];
@@ -164,11 +175,11 @@ export const generateWebdavHashTree = async (client: WebDAVClient,rootFolder, ex
         // console.log("Contents:", JSON.stringify(contents));
         // writeFileSync("out/output-webdav1.json", JSON.stringify(contents, null, 2));
 
-        const refinedResult = refineObject(contents.data, exclusions);
+        const refinedResult = this.refineObject(contents.data, exclusions);
 
-        const webdavHashtree = removeBase(refinedResult, rootFolder)
+        const webdavHashtree = this.removeBase(refinedResult, rootFolder)
         // writeFileSync("out/output-webdav2.json", JSON.stringify(refinedResult, null, 2));
-        // console.log("webdav: ",webdavHashtree)
+        console.log("webdav: ",webdavHashtree)
         return webdavHashtree
     } catch (error) {
         console.error("Error:", error);
@@ -176,4 +187,4 @@ export const generateWebdavHashTree = async (client: WebDAVClient,rootFolder, ex
     }
 }
 
-
+}

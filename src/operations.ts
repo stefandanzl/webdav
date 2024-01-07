@@ -1,4 +1,4 @@
-
+import Cloudr from "./main"
 // import * as fs from 'fs';
 // import * as path from 'path';
 import {WebDAVClient, createClient } from "webdav";
@@ -7,8 +7,17 @@ import * as fsp from 'fs/promises';
 // import { join } from "path";
 import { dirname } from "path";
 // import { PathLike } from "fs";
+import { join, // emptyObj 
+} from './util';
 
-export const configWebdav = (url: string, username: string, password: string): WebDAVClient =>{
+export class Operations{
+  
+
+  constructor(public plugin: Cloudr){
+      this.plugin = plugin;
+  }
+
+configWebdav = (url: string, username: string, password: string): WebDAVClient =>{
   if(!(url && username && password )){ 
     // console.log("No userdata")
     throw new Error("No userdata");
@@ -18,18 +27,7 @@ export const configWebdav = (url: string, username: string, password: string): W
 return client
 }
 
-export const join = (...args: string[]) => {
-  const separator = '/'; // Change this to '\\' for backslash on Windows
-  return args.join(separator).replace(/\/\//g, '/');
-}
 
-export const emptyObj = (obj: unknown) => {
-  if (typeof obj === 'object' && obj !== null){
-      return Object.values(obj).length === 0
-  } else {
-      return true
-  }
-}
 
 // export const downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePath: string, remoteBasePath: string, concurrencyLimit = 5) => {
 //   if (filesMap == undefined ||Object.keys(filesMap).length === 0) {
@@ -122,7 +120,7 @@ export const emptyObj = (obj: unknown) => {
 //   await Promise.all(promises);
 // };
 
-export const downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePath: string, remoteBasePath: string) => {
+downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePath: string, remoteBasePath: string) => {
   if (filesMap == undefined || Object.keys(filesMap).length === 0) {
     console.log('Nothing to download.');
     return;
@@ -196,7 +194,7 @@ export const downloadFiles = async (webdavClient: WebDAVClient, filesMap: object
 };
 
 
-export const uploadFiles = async (webDavClient: WebDAVClient, fileChecksums: object | undefined, localBasePath: string, remoteBasePath: string) => {
+uploadFiles = async (webDavClient: WebDAVClient, fileChecksums: object | undefined, localBasePath: string, remoteBasePath: string) => {
   if (fileChecksums == undefined ||Object.keys(fileChecksums).length === 0) {
     console.log('No files to upload.');
     return
@@ -247,7 +245,7 @@ export const uploadFiles = async (webDavClient: WebDAVClient, fileChecksums: obj
   }
 }
 
-export const deleteFilesWebdav = async(client: WebDAVClient, basePath: string ,fileTree: object | undefined) => {
+deleteFilesWebdav = async(client: WebDAVClient, basePath: string ,fileTree: object | undefined) => {
   if ( fileTree == undefined || Object.keys(fileTree).length === 0 ) {
     console.log('The object is empty.');
     return
@@ -255,7 +253,7 @@ export const deleteFilesWebdav = async(client: WebDAVClient, basePath: string ,f
   
   for (const file in fileTree){
   // webdav - delete
-  try {
+  // try {
     if (file.endsWith('/')){
       const path = file.replace(/\/$/, '');
       // const stat = await client.stat(path);
@@ -266,28 +264,62 @@ export const deleteFilesWebdav = async(client: WebDAVClient, basePath: string ,f
     //   await Promise.all(children.map(child => deleteItem(child.filename)));
     // }
 
+
+      try{
     // Delete the item (file or directory)
     await client.deleteFile(join(basePath,path));
     console.log(`Deleted: ${path}`);
-    } else {
+      }catch(error){
+        console.error("--- ERROR Deleting - retrying ",file)
+        try {
+          await sleep(100)
+          if (path){
+            await client.deleteFile(join(basePath,path));
+            console.log(`Deleted: ${path}`);
+          }
+      
+          } catch(error){
+            console.error("Error on deletion retry ",error)
+          }
+      }
+  } else {
     // Iterate through remote file paths and delete each file
     // await Promise.all(remoteFilePaths.map(async remoteFilePath => {
-      client.deleteFile(join(basePath,file)).then(()=>{
-        console.log(`File deleted successfully: ${file}`);
-      });
+      // client.deleteFile(join(basePath,file)).then(()=>{
+      //   console.log(`File deleted successfully: ${file}`);
+        try{
+          // Delete the item (file or directory)
+          await client.deleteFile(join(basePath,file));
+          console.log(`Deleted: ${file}`);
+            }catch(error){
+              console.error("--- ERROR Deleting - retrying ",file)
+              try {
+                await sleep(100)
+                
+                  await client.deleteFile(join(basePath,file));
+                  console.log(`Deleted: ${file}`);
+                
+            
+                } catch(error){
+                  console.error("Error on deletion retry ",error)
+                }
+            }
+      
     }
       
     // }));
 
-  } catch (error) {
-    console.error(`Error deleting files: ${error.message}`, file);  // previously error
-  }
+  // } catch (error) {
+  //   console.error(`Error deleting files: ${error.message}`, file);  // previously error
+
+    
+  // }
 }
 }
 
 
 
-export const deleteFilesLocal = async(fileTree: object | undefined) => {
+deleteFilesLocal = async(fileTree: object | undefined) => {
   if (fileTree == undefined ||Object.keys(fileTree).length === 0) {
     console.log('The object is empty.');
     return
@@ -308,3 +340,4 @@ export const deleteFilesLocal = async(fileTree: object | undefined) => {
 }
 
 
+}

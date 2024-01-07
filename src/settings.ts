@@ -5,33 +5,35 @@ import Cloudr from "./main"
 
 
 export interface CloudrSettings {
+	// mySetting: string;
+    // Connection
     url: string,
     username: string,
     password: string,
     webdavPath: string,
     overrideVault: string, 
-    exclusions: {
-        directories: string[], 
-        extensions: string[], 
-        markers: string[]
-    },
-
+    exclusions: {directories: string[], extensions: string[], markers: string[]},
     pullStart: boolean,
+
     liveSync: boolean,
     autoSync: boolean,
     autoSyncInterval: number,
+    modifySyncInterval: number,
+    modifySync: boolean,
     enableRibbons: boolean,
 
 }
 
 export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
+	
     url: "",
     username: "",
     password: "",
+   
     webdavPath: "",
     overrideVault: "",
     exclusions: { 
-        directories: ["node_modules", ".git"], 
+        directories: ["node_modules", ".git", "webdav"], 
         extensions: [], 
         markers: ["prevdata.json"],
     },
@@ -41,8 +43,6 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     autoSync: false,
     autoSyncInterval: 10,
     enableRibbons: true,
-
-
 
 }
 
@@ -86,7 +86,6 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 })
             );
 
-
         new Setting(containerEl)
             .setName("Webdav Password")
             .setDesc("Enter your Server's Password")
@@ -108,13 +107,12 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 button
                 .onClick(()=>{ this.plugin.test().then(()=>{
                     button.setButtonText(this.plugin.prevData.error ? "FAIL" : "OK");
-                    if( this.plugin.message){
-                        // nothing yet
-                    }
+                    // if( this.plugin.message){
+                    //     // nothing yet
+                    // }
                 })
                 })
                 .setButtonText(this.plugin.prevData.error ? "FAIL" : "OK")
-                
             );
 
         new Setting(containerEl)
@@ -146,7 +144,6 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     this.plugin.test()
                 })
             );
-
 
         new Setting(containerEl)
             .setName("Excluded Directories")
@@ -204,8 +201,6 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
-
-
 
             new Setting(containerEl)
             .setName("Live Sync")
@@ -276,17 +271,12 @@ export class CloudrSettingsTab extends PluginSettingTab {
                         // console.log("Successfully parsed:", parseVal);
                         this.plugin.settings.autoSyncInterval = parseVal
 
-                        
                             this.plugin.setAutoSync()
                         
                         await this.plugin.saveSettings();
                     }
-                    
-                    
                 })
             );
-
-
 
         new Setting(containerEl)
             .setName("Enable Ribbons")
@@ -299,19 +289,12 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
-
-
-
-
     }
 }
-
-
 
 export class FileTreeModal extends Modal {
     // plugin: Cloudr;
     // fileTrees: object;
-
 
     constructor(app: App, public plugin: Cloudr){//public fileTrees: object) {
       super(app);
@@ -323,73 +306,86 @@ export class FileTreeModal extends Modal {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { titleEl, modalEl, contentEl, containerEl } = this;
 
-    titleEl.setText("FileTree Inspector")
+    //     document.getElementsByClassName("modal").forEach(element => {
+        
+    // }); (const m in document.getElementsByClassName("modal")){
+        
+    // }
+    // .item   .style.overflowY = "none"
+    modalEl.style.overflowY = "hidden"
+    modalEl.style.width = "100%"
+    modalEl.style.height = "100%"
+
+    titleEl.setText("Webdav Control Panel")
 
 
-    const buttonDivTop = contentEl.createEl("div");
-    buttonDivTop.style.display = "flex"
-    buttonDivTop.style.flexDirection = "row" ;
-    buttonDivTop.style.justifyContent = "space-between"
+    const mainDiv = contentEl.createEl("div");
+    mainDiv.style.display = "flex"
+    mainDiv.style.flexDirection = "row" ;
+    mainDiv.style.justifyContent = "space-between"
+    mainDiv.style.gap = "40px"
+    mainDiv.style.margin = "5px"
 
-    const checkButton = buttonDivTop.createEl(
+    const buttonDiv = mainDiv.createEl("div");
+    buttonDiv.style.display = "flex"
+    buttonDiv.style.flexDirection = "column" ;
+    // buttonDiv.style.alignContent = "space-around"
+    // buttonDiv.style.flexWrap = "wrap"
+    buttonDiv.style.gap = "20px"
+    buttonDiv.style.position = "fixed"
+    // buttonDiv.style.top = "20px"
+    // const buttonDivWidth = buttonDiv.offsetWidth
+    // const buttonDivHeight = buttonDiv.offsetHeight;
+
+    // console.log("BUTTON ",buttonDivHeight)
+
+    // mainDiv.style.minHeight = `${buttonDivHeight}px`
+    mainDiv.style.minHeight = `330px`
+
+    const checkButton = buttonDiv.createEl(
         "button",{ text: 'CHECK', cls: 'mod-cta' }
     );
     checkButton.addEventListener('click', () => {
-        // Your function logic here
-        // console.log('Button clicked!');
-        this.plugin.show("Checking files ...")
+        // this.plugin.show("Checking files ...")
         this.plugin.check().then(()=>{
             fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2))
         })
     });
 
-    const resetButton = buttonDivTop.createEl(
-        "button",{ text: 'RESET', cls: 'mod-cta', title: "Reset the error status in your previous data storage", attr: {
+    const pauseButton = buttonDiv.createEl(
+        "button",{ text: 'PAUSE', cls: 'mod-cta' }
+    );
+    pauseButton.addEventListener('click', () => {
+        this.plugin.show("Toggling Pause")
+        this.plugin.togglePause()
+    });
+
+    const errorButton = buttonDiv.createEl(
+        "button",{ text: 'ERROR', cls: 'mod-cta', title: "Clear the error status in your previous data storage", attr: {
             backgroundColor: "red",
             
         } }
     );
-    resetButton.addEventListener('click', () => {
-        // Your function logic here
-        // console.log('Button clicked!');
+    errorButton.addEventListener('click', () => {
         this.plugin.show("Resetting Error status")
-        this.plugin.saveStateError(false)
+        this.plugin.prevData.error= false
+        this.plugin.setStatus("")
+        
     });
 
-    const saveButton = buttonDivTop.createEl(
+    const saveButton = buttonDiv.createEl(
         "button",{ text: 'SAVE', cls: 'mod-cta' }
     );
     saveButton.addEventListener('click', () => {
-        // Your function logic here
-        // console.log('Button clicked!');
         this.plugin.show("Saving current vault file state for future synchronisation actions")
         this.plugin.saveState()
     });
 
-    const fileTreeDiv = contentEl.createEl("div");
-    if (this.plugin.fileTrees){  
-    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 4));
-    } else {
-        fileTreeDiv.setText("Press CHECK button for data to be shown");
-    }
-    fileTreeDiv.style.whiteSpace = "pre"// "pre-wrap" ;
-    fileTreeDiv.style.minHeight = "200px"
-    fileTreeDiv.style.overflowX = "auto"
-    fileTreeDiv.style.overflowY = "auto"
-
-
-      const buttonDiv = contentEl.createEl("div");
-      
-      buttonDiv.style.display = "flex"
-      buttonDiv.style.flexDirection = "row" ;
-      buttonDiv.style.justifyContent = "space-between"
-      
+    
     const pullButton = buttonDiv.createEl(
         "button",{ text: 'PULL', cls: 'mod-cta' }
     );
     pullButton.addEventListener('click', () => {
-        // Your function logic here
-        // console.log('Button clicked!');
         // this.plugin.show("Pulling files from server ...")
         this.plugin.pull().then(()=>{
             fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2))
@@ -400,8 +396,6 @@ export class FileTreeModal extends Modal {
         "button",{ text: 'SYNC', cls: 'mod-cta' }
     );
     syncButton.addEventListener('click', () => {
-        // Your function logic here
-        // console.log('Button clicked!');
         // this.plugin.show("Synchronizing files with server ...")
         this.plugin.fullSync().then(()=>{
             fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2))
@@ -412,8 +406,6 @@ export class FileTreeModal extends Modal {
         "button",{ text: 'PUSH', cls: 'mod-cta' }
     );
     pushButton.addEventListener('click', () => {
-        // Your function logic here
-        // console.log('Button clicked!');
         // this.plugin.show("Pushing files to server ...")
         this.plugin.push().then(()=>{
             fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2))
@@ -422,6 +414,37 @@ export class FileTreeModal extends Modal {
 
 
 
+         // const buttonDiv = contentEl.createEl("div");
+    
+    // buttonDiv.style.display = "flex"
+    // buttonDiv.style.flexDirection = "row" ;
+    // buttonDiv.style.justifyContent = "space-between"
+
+    const containDiv = mainDiv.createEl("div");
+    containDiv.style.overflow = "auto"
+    containDiv.style.height = "100%"
+    
+
+    const fileTreeDiv = containDiv.createEl("div");
+    
+    
+    fileTreeDiv.style.whiteSpace = "pre"// "pre-wrap" ;
+    fileTreeDiv.style.minHeight = "70vh"
+    // fileTreeDiv.style.overflowX = "auto"
+    // fileTreeDiv.style.overflowY = "auto"
+    // fileTreeDiv.style.marginLeft = `${buttonDivWidth}px`;
+    fileTreeDiv.style.marginLeft = `80px`;
+    fileTreeDiv.style.overflow = "auto"
+    fileTreeDiv.style.userSelect = "text"; /* Allow text selection */
+    // fileTreeDiv.style.cursor = "text";
+    fileTreeDiv.style.height = "100px"
+    fileTreeDiv.style.paddingBottom = "10px"
+   
+    if (this.plugin.fileTrees){  
+        fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 4));//.replace(/: /g, ': \t'));
+        } else {
+            fileTreeDiv.setText("Press CHECK button for data to be shown");
+        }
     }
   
     onClose() {

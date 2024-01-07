@@ -1,7 +1,14 @@
 // @ts-nocheck
+import Cloudr from "./main"
 
+export class Compare{
+  
+
+  constructor(public plugin: Cloudr){
+      this.plugin = plugin;
+  }
 // Function to compare two file trees and find changes
-function compareFileTreesExcept(webdavFiles:{added:object,modified:object,deleted:object,except:object}, localFiles:{added:object,modified:object,deleted:object,except:object}) {
+compareFileTreesExcept(webdavFiles:{added:object,modified:object,deleted:object,except:object}, localFiles:{added:object,modified:object,deleted:object,except:object}) {
  
 // console.log("COMPAREFILETREESEXCEPT",webdavFiles, localFiles)
 
@@ -62,15 +69,16 @@ function compareFileTreesExcept(webdavFiles:{added:object,modified:object,delete
 }
 
 // Function to compare two file trees and find changes
-async function comparePreviousFileTree(previousObj, current) {
+async comparePreviousFileTree(previousObj, current) {
   const previous = previousObj.files
   const added = {};
   const deleted = {};
   const modified = {};
-  const { removedItems, remainingItems } = checkExistKeyBoth(current, previousObj.except);
+  const { removedItems, remainingItems } = this.checkExistKeyBoth(current, previousObj.except);
   const except = remainingItems;
   current = removedItems ;
   
+
 
   // Identify added and modified files
   for (const [currentFile, currentHash] of Object.entries(current)) {
@@ -85,24 +93,43 @@ async function comparePreviousFileTree(previousObj, current) {
     }
   }
 
-  // Identify deleted files
-  for (const [prevFile, prevHash] of Object.entries(previous)) {
-    if (!current[prevFile] && !except[prevFile]) {
+  // // Identify deleted files
+  // for (const [prevFile, prevHash] of Object.entries(previous)) {
+  //   if (!current[prevFile]) {
       
-      if (current[prevFile] === previous[prevFile]){
-        // unchanged
-      } else {
-        deleted[prevFile] = prevHash;
-      }
+  //     if (current[prevFile] === previous[prevFile]){
+  //       // unchanged
+  //     } else {
+  //       deleted[prevFile] = prevHash;
+  //     }
+  //   }
+  // }
+
+  //@ts-ignore
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  for (const [file, hash] of Object.entries(previous)){
+    if (!current.hasOwnProperty(file)) {
+      // The key is not in the current object
+      deleted[file] = previous[file];
+      console.log("HAAAA ",file)
     }
+   
   }
+
+
+
+
+
+
+
+
 
   return { added, deleted, modified, except };
 }
 
 
 
-const checkExistKey = (sourceObject, referenceObject) => {
+checkExistKey = (sourceObject, referenceObject) => {
   return Object.fromEntries(
     Object.entries(sourceObject).filter(([key]) => key in referenceObject)
   );
@@ -110,7 +137,7 @@ const checkExistKey = (sourceObject, referenceObject) => {
 
 
 
-const checkExistKeyBoth = (sourceObject={}, referenceObject={}) => {
+checkExistKeyBoth = (sourceObject={}, referenceObject={}) => {
   const removedItems = {};
   const remainingItems = {};
 
@@ -125,7 +152,7 @@ const checkExistKeyBoth = (sourceObject={}, referenceObject={}) => {
   return { removedItems, remainingItems };
 };
 
-const filterExclusions = (fileTree: object,  exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) =>{
+filterExclusions = (fileTree: object,  exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) =>{
     const { extensions = [], directories = [], markers = [] } = exclusions;
     const filtered = {}
     
@@ -173,7 +200,7 @@ if (lastDotIndex !== -1) {
   }
 
 
-export const compareFileTrees = async (webdavFiles, localFiles, prevFileTree={}, exclusions: { extensions?: string[], directories?: string[], markers?: string[] }):{webdavFiles, localFiles} => {
+compareFileTrees = async (webdavFiles, localFiles, prevFileTree={}, exclusions: { extensions?: string[], directories?: string[], markers?: string[] }):{webdavFiles, localFiles} => {
 
 // const files1 = Object.keys(webdavFiles)
 // const files2 = Object.keys(localFiles)
@@ -185,21 +212,38 @@ export const compareFileTrees = async (webdavFiles, localFiles, prevFileTree={},
 let webdavMatch, localMatch
 
 if (prevFileTree.files &&  Object.keys(prevFileTree.files).length > 0){
+try {
+  prevFileTree.files = this.filterExclusions(prevFileTree.files, exclusions)
 
-  prevFileTree.files = filterExclusions(prevFileTree.files, exclusions)
+  console.log("PREV",prevFileTree)
+  console.log("WEBD",webdavFiles)
+  console.log("LOC",localFiles)
 
+// let webdavFilesBranch
+// let localFilesBranch
   // const differingFiles = compareFileTrees(webdavFiles, localFiles);
-const webdavFilesPromise = comparePreviousFileTree(prevFileTree, webdavFiles);
-const localFilesPromise = comparePreviousFileTree(prevFileTree, localFiles);
+// const webdavFilesPromise = await this.comparePreviousFileTree(prevFileTree, webdavFiles);
+const webdavFilesBranch = await this.comparePreviousFileTree(prevFileTree, webdavFiles);
 
-[webdavFilesBranch, localFilesBranch] = await Promise.all([webdavFilesPromise, localFilesPromise]);
-
-
- ({webdavMatch, localMatch} = compareFileTreesExcept(webdavFilesBranch, localFilesBranch));
+console.log("webdavFilesBranch",webdavFilesBranch)
 
 
-webdavMatch.deleted = checkExistKey(webdavMatch.deleted, localFiles)
-localMatch.deleted  = checkExistKey(localMatch.deleted, webdavFiles)
+// const localFilesPromise = await this.comparePreviousFileTree(prevFileTree, localFiles);
+const localFilesBranch = await this.comparePreviousFileTree(prevFileTree, localFiles);
+console.log("localFilesBranch",localFilesBranch);
+
+({webdavMatch, localMatch} = this.compareFileTreesExcept(webdavFilesBranch, localFilesBranch));
+// [webdavFilesBranch, localFilesBranch] = await Promise.all([webdavFilesPromise, localFilesPromise]);
+} catch (error){
+  console.error("CHECKSU; ERROR, ",error)
+  return error
+}
+
+ 
+
+
+webdavMatch.deleted = this.checkExistKey(webdavMatch.deleted, localFiles)
+localMatch.deleted  = this.checkExistKey(localMatch.deleted, webdavFiles)
 
 } else {
   console.log("++ NO PREVIOUS fileTree loaded! ++")
@@ -208,7 +252,7 @@ localMatch.deleted  = checkExistKey(localMatch.deleted, webdavFiles)
   localFilesBranch = {added: {...localFiles}};
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
- ({webdavMatch, localMatch} = compareFileTreesExcept(webdavFilesBranch, localFilesBranch))
+ ({webdavMatch, localMatch} = this.compareFileTreesExcept(webdavFilesBranch, localFilesBranch))
 
 }
 
@@ -216,3 +260,4 @@ localMatch.deleted  = checkExistKey(localMatch.deleted, webdavFiles)
 return { webdavFiles: webdavMatch, localFiles: localMatch}
 }
 
+}

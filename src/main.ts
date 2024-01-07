@@ -2,19 +2,27 @@
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import { FileSystemAdapter, TFile, TAbstractFile , Notice, Plugin,// App, Editor, MarkdownView, Modal, PluginSettingTab, Setting
  } from 'obsidian';
-import { configWebdav, emptyObj } from './operations';
+
 // import { readdirSync } from 'fs';
 import { WebDAVClient } from 'webdav';
 import { CloudrSettings, DEFAULT_SETTINGS, CloudrSettingsTab, FileTreeModal } from "./settings"
-import { generateLocalHashTree, generateWebdavHashTree } from './checksum';
-import { compareFileTrees } from './compare';
-import { downloadFiles, uploadFiles, deleteFilesLocal, deleteFilesWebdav, join, } from './operations';
+import { Checksum, //generateLocalHashTree, generateWebdavHashTree 
+} from './checksum';
+import {  Compare } from './compare';
+import { Operations,
+    //downloadFiles, uploadFiles, deleteFilesLocal, deleteFilesWebdav, join, configWebdav, emptyObj
+} from './operations';
 import { createHash } from 'crypto';
+import { join, emptyObj } from './util';
 
 
 
 export default class Cloudr extends Plugin {
     settings: CloudrSettings;
+    compare: Compare;
+    checksum: Checksum;
+    operations: Operations;
+
     statusBar: HTMLElement;
     webdavPath: string;
     showModal: boolean;
@@ -29,7 +37,7 @@ export default class Cloudr extends Plugin {
     baseWebdav: string;
     prevPath: string;
     prevData: {
-        date?: Date,
+        date?: number,
         error: boolean,
         files: object,
         except?: object,
@@ -39,6 +47,9 @@ export default class Cloudr extends Plugin {
     message: string;
     lastSync: number;
     notice: Notice;
+    pause: boolean;
+    force: string;
+
 
 
 
@@ -47,6 +58,11 @@ export default class Cloudr extends Plugin {
 
         // This adds a settings tab so the user can configure various aspects of the plugin
         this.addSettingTab(new CloudrSettingsTab(this.app, this));
+
+        this.compare = new Compare(this)
+        this.checksum = new Checksum(this)
+        this.operations = new Operations(this)
+        
 
         const adapter = this.app.vault.adapter;
         if (adapter instanceof FileSystemAdapter) {
@@ -63,35 +79,31 @@ export default class Cloudr extends Plugin {
     if (this.settings.enableRibbons){
         
     this.addRibbonIcon("upload-cloud", "PUSH to Webdav", () => {
-        this.push().then(()=>this.saveState)
-        // console.log("Hello, you!");
+        this.push()
       });
 
       this.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
         this.fullSync()
-        // console.log("Hello, you!");
       });
 
         this.addRibbonIcon("download-cloud", "PULL from Webdav", () => {
-            this.pull().then(()=>this.saveState)
-            // console.log("Hello, you!");
+            this.pull()
           });
 
-          this.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
-            this.displayModal()
-            // console.log("Hello, you!");
-          });
+
 
         }
 
-
+        this.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
+            this.displayModal()
+          });
 
         try {
             this.prevData = JSON.parse(await app.vault.adapter.read(this.prevPath))
             // prevData.date = new Date(prevData.date)
             // this.prevData = prevData
 
-            console.log(this.prevData)
+            console.log("PREVDATA LOADED: ",this.prevData)
         } catch {
             this.prevData = {
                 error: true,
@@ -116,13 +128,15 @@ export default class Cloudr extends Plugin {
         
         this.statusBar.setText('OFF');
         this.statusBar.addEventListener('click', () => {
-            // Your function logic here
-            // console.log('Button clicked!');
-            this.displayModal()
-        });
-        // this.statusBar.classList.add()
+            if (this.app.lastEvent && this.app.lastEvent.ctrlKey){
+                console.log("TTTTTTTTTTTTTTTTT")
 
-        // this.setClient()
+            } else {
+                this.displayModal()
+            }
+            
+            
+        });
 
 
         this.addCommand({
@@ -150,45 +164,12 @@ export default class Cloudr extends Plugin {
             }
         });
 
-        // This adds a simple command that can be triggered anywhere
-        this.addCommand({
-            id: 'generate-local-hashtree',
-            name: 'Generate local Hashtree',
-            callback: () => {
 
-                generateLocalHashTree(this.baseLocal, this.settings.exclusions)
-            }
-        });
-
-        // This adds a simple command that can be triggered anywhere
         this.addCommand({
-            id: 'generate-webdav-hashtree',
-            name: 'Generate Webdav Hashtree',
-            callback: () => {
-                // eslint-disable-next-line @typescript-eslint/no-this-alias
-                // const self = this
-                generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions)
-            }
-        });
-
-        // This adds a simple command that can be triggered anywhere
-        this.addCommand({
-            id: 'check-local-webdav-hashtree',
-            name: 'Check Local and Webdav Hashtree',
+            id: 'webdav-fullsync',
+            name: 'Full Sync',
             callback: async () => {
 
-                this.check()
-
-            }
-        });
-
-        // This adds a simple command that can be triggered anywhere
-        this.addCommand({
-            id: 'sync-local-webdav-hashtree',
-            name: 'Sync Local and Webdav Hashtree',
-            callback: async () => {
-                // eslint-disable-next-line @typescript-eslint/no-this-alias
-                // const self = this
                this.fullSync()
 
             }
@@ -198,7 +179,7 @@ export default class Cloudr extends Plugin {
             id: 'save-prev',
             name: 'Save State',
             callback: async () => {
-                //const fileTree = generateLocalHashTree(this.baseLocal, this.settings.exclusions)
+
                 this.saveState()
 
             }
@@ -208,52 +189,44 @@ export default class Cloudr extends Plugin {
             id: 'reset-error',
             name: 'Reset Error state',
             callback: async () => {
-                //const fileTree = generateLocalHashTree(this.baseLocal, this.settings.exclusions)
-                this.saveStateError(false)
+
+                this.prevData.error= false
 
             }
         });
 
-
-        // This adds a simple command that can be triggered anywhere
         this.addCommand({
             id: 'delete-local',
             name: 'Delete pending local files',
             callback: () => {
-                // Use the readdirSync function to list the contents of the current directory
-                console.log("Triggered delete")
-                deleteFilesLocal(this.fileTrees.webdavFiles.deleted)
 
+                this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted)
 
             }
         });
 
-        // This adds a simple command that can be triggered anywhere
         this.addCommand({
             id: 'delete-webdav',
             name: 'Delete pending webdav files',
             callback: () => {
-                // Use the readdirSync function to list the contents of the current directory
-                console.log("Triggered delete")
-                deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted)
 
+                this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted)
 
             }
         });
 
-                // This adds a simple command that can be triggered anywhere
                 this.addCommand({
-                    id: 'sample1',
-                    name: 'sample1',
+                    id: 'toggle-pause-all',
+                    name: 'Toggle Pause for all activities',
                     callback: () => {
 
-
+                        this.togglePause()
                     }
                 });
        
 
         this.setStatus("");
-this.setClient().then(async()=>{
+        this.setClient().then(async()=>{
         if (this.settings.pullStart && !this.prevData.error) {
             this.setStatus("🚀");
             try {
@@ -263,9 +236,9 @@ this.setClient().then(async()=>{
                 // this.pull()
                 
                await Promise.all([
-                    downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
-                    downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
-                    deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
+                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
+                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
                     // downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
                 ]);
                 // this.saveState()
@@ -293,7 +266,7 @@ this.setClient().then(async()=>{
 
     async setClient(){
         try{
-        this.webdavClient = configWebdav(this.settings.url, this.settings.username, this.settings.password)
+        this.webdavClient = this.operations.configWebdav(this.settings.url, this.settings.username, this.settings.password)
         } catch (error){
             console.error("Webdav Client creation error.", error)
             this.show("Error creating Webdav Client!")
@@ -316,7 +289,7 @@ this.setClient().then(async()=>{
 
         if (this.settings.autoSync){
             this.intervalId = window.setInterval(() => {
-                // Your interval callback logic here
+
                 console.log('AUTOSYNC INTERVAL TRIGGERED');
                 this.fullSync(false)
             }, this.settings.autoSyncInterval*1000);
@@ -381,64 +354,79 @@ setLiveSync(){
         app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
     }
 
-    async test(button = true){
-        this.setStatus("🧪");
+    async test(button = true) {
         try {
-            // Attempt to list the contents of the configured path   //this.baseWebdav);
-            const directoryContents = await this.webdavClient.getDirectoryContents(this.settings.webdavPath).then(contents => {
-                // Filter out only directories
-                // @ts-ignore
-                const directories = contents.filter(item => item.type === "directory");
-            
-                // Print the list of directories
-                // @ts-ignore
-                console.log("Directories at", this.settings.webdavPath, ":", directories.map(dir => dir.filename));
-                // @ts-ignore
-                button && this.show("Directories at "+ "/"+this.settings.webdavPath+":\n"+ directories.map(dir => dir.filename).join("\n"));
-              })
-              .catch(error => {
-                console.error("Error:", error);
-                button && this.show(`WebDAV connection test failed. Error:`+ error)
-              });
-            
-
+            this.setStatus("🧪");
+    
+            const directoryContents = await this.webdavClient.getDirectoryContents(this.settings.webdavPath);
+    
+            // Filter out only directories
+            // @ts-ignore
+            const directories = directoryContents.filter(item => item.type === "directory");
+    
+            // Print the list of directories
+            // @ts-ignore
+            const directoryList = directories.map(dir => dir.filename).join("\n");
+            console.log(`Directories at /${this.settings.webdavPath}:\n${directoryList}`);
+    
+            if (button) {
+                this.show(`Directories at /${this.settings.webdavPath}:\n${directoryList}`);
+            }
+    
             // If successful, log the results
-            console.log(`WebDAV connection test successful. Directory contents:`, JSON.stringify(directoryContents, null, 2));
-            // this.show("Connection Test successful!\nDirectories in Webdav Base directory:\n"+dirs.join("\n"))
-            // this.saveStateError(false)
-            this.prevData.error = false
+            console.log("WebDAV connection test successful. Directory contents:", JSON.stringify(directoryContents, null, 2));
+            this.prevData.error = false;
             return true;
         } catch (error) {
             // If an error occurs, log the error details
-            console.error(`WebDAV connection test failed. Error:`+ error);
-            this.show(`WebDAV connection test failed. Error:`+ error)
-            // this.saveStateError(true)
-            this.prevData.error = true
+            console.error(`WebDAV connection test failed. Error:`, error);
+            if (button) {
+                this.show(`WebDAV connection test failed. Error: ${error}`);
+            }
+            this.prevData.error = true;
             return false;
         } finally {
             this.setStatus("");
         }
-        
     }
 
+    
     async check(button = true) {
         if (!button || !this.status){ //disable status check if button = false for fullsync etc.
             this.setStatus("🔎");
-        try {
-            const webdavPromise = generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-            const localPromise = generateLocalHashTree(this.baseLocal, this.settings.exclusions);
+            
+            try {
+            const dir = await this.webdavClient.getDirectoryContents(this.settings.webdavPath)
+
+            if (dir){
+                this.prevData.error = false
+            }
+            } catch (error){
+                this.show("No Connection to server! \n"+error.message)
+                console.error("CHECK Connection issue: ",error)
+                this.prevData.error = true
+                this.setStatus("")
+                return error
+            }
+            console.log("GAAAAAAAAAA")
+        
+            try {
+            const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
+            const localPromise = this.checksum.generateLocalHashTree(this.baseLocal, this.settings.exclusions);
 
             // Use Promise.all to execute both promises simultaneously
             const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
 
-            const comparedFileTrees = await compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
+            console.log("WEBDAV:",webdavFiles)
+            console.log("LOCAL",localFiles)
+            ///////// Check if valid response
+
+            const comparedFileTrees = await this.compare.compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
             console.log(JSON.stringify(comparedFileTrees, null, 2))
             this.fileTrees = comparedFileTrees
  
 
             button && (this.fileTreesEmpty() ? null : this.show("Finished checking files"))
-
-            
             return true
         } catch (error) {
             console.log("CHECK ERROR: ", error)
@@ -446,17 +434,35 @@ setLiveSync(){
             console.error("CHECK", error)
             // this.saveStateError(true)
             this.prevData.error = true
-            return false
+            return error
         } finally{
             this.setStatus("");
         }
     } else {
         console.log("Action currently active: ", this.status)
+        button && this.show("Currently active: "+this.status)
     }
     }
 
     async pull(button = true) {
+        if (this.prevData.error){ 
+            const action = "pull"
+            if (this.force !== action){
+                this.setForce(action)
+                button && this.show("Error detected - please clear in control panel or force action by retriggering "+action) 
+                return
+                
+            }
+        }
         if (!this.status){
+            try{
+                this.setStatus("⬇️");
+                this.status = "pull"
+            if (!(await this.test(false)))
+            {
+                this.show("Connection Problem detected!")
+                return
+            }
         if (!this.fileTrees) {
             button && this.show("Checking files before pulling ...");
             console.log("NO FILETREES ")
@@ -464,9 +470,6 @@ setLiveSync(){
             // button && this.show("");
         }
         
-        this.setStatus("⬇️");
-
-        try{
         const f = this.fileTrees
         if (button &&
             emptyObj(f.webdavFiles.added) && 
@@ -484,14 +487,15 @@ setLiveSync(){
         button && this.show("Pulling ...")
             
                 await Promise.all([
-                    downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
-                    downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
-                    deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
-                    downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
+                    this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
                 ]);
 
                 button && this.show("Pulling completed - checking again")
-                await this.check(false)
+                this.force = "save"
+                await this.saveState(false)
                 button && this.show("Done")
             } catch (error){
                 console.error("PULL", error)
@@ -499,6 +503,7 @@ setLiveSync(){
                 // this.saveStateError(true)
                 this.prevData.error = true
             } finally{
+                this.status = ""
                 this.setStatus("");
                 
             }
@@ -509,7 +514,21 @@ setLiveSync(){
     }
 
     async push(button = true) {
-        if (!this.status){
+        if (this.prevData.error){ 
+            const action = "push"
+            if (this.force !== action){
+                this.setForce(action)
+                this.show("Error detected - please clear in control panel or force action by retriggering "+action) 
+                return
+                
+            }
+        }
+        if (!this.status ){
+            if (!(await this.test(false)))
+            {
+                button && this.show("Connection Problem detected!")
+                return
+            }
         if (!this.fileTrees) {
             button && this.show("Checking files before pushing ...");
             console.log("NO FILETREES ")
@@ -537,13 +556,16 @@ setLiveSync(){
         
         
             await Promise.all([
-                uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseLocal, this.baseWebdav),
-                uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
-                deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
-                uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
             ])
-            button && this.show("Pushing completed - checking again")
-            await this.check(false)
+            
+            
+            button && this.show("Pushing completed - saving current state ...")
+            this.force = "save"
+            await this.saveState(false)
             button && this.show("Done")
         } catch (error){
             // button && this.show("PUSH Error: " + error)
@@ -561,14 +583,31 @@ setLiveSync(){
     }
 
     async fullSync(button = true){
+        if (this.prevData.error){ 
+            const action = "fullSync"
+            if (this.force !== action){
+                this.setForce(action)
+                this.show("Error detected - please clear in control panel or force action by retriggering "+action) 
+                return
+                
+            }
+        }
+        
         // console.log("FULLL")
         if (!this.status){
+            if (!(await this.test(false)))
+            {
+                this.show("Connection Problem detected!")
+                return
+            }
             
             this.setStatus("↕️");
         try {
             if (!this.prevData.error){
             if (this.prevData && this.prevData.files && Object.keys(this.prevData.files).length > 0){
             await this.check(false)
+
+            
             
             if(this.fileTreesEmpty(button)){ return }
             button && this.show("Synchronizing ...")
@@ -578,33 +617,38 @@ setLiveSync(){
                 try {
             // await this.pull(false)
             await Promise.all([
-                downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
-                downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
-                deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
+                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
+                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
                 // downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
             ]);
         } catch(error){
                 console.log("fullSync Download",error)
                 noError = false
+                return error
             }
 
             try{
             // await this.push(false);
             await Promise.all([
-                uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseLocal, this.baseWebdav),
-                uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
-                deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
                 // uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
             ])
         } catch(error){
             console.log("fullSync Upload",error)
             noError = false
+            return error
         }
 
-            await this.check(false)
+            // await this.check(false)
 
+        if (noError){ 
             this.prevData.error = false;
-            noError && await this.saveState()
+            this.force = "save"
+            await this.saveState()
+           }
             } else {
                 console.log("No previous Data found - please perform actions manually:\nPULL - PUSH")
                 button && this.show("No previous Data found - please perform actions manually: PULL or PUSH - if this is a new install use PUSH")
@@ -634,6 +678,11 @@ setLiveSync(){
 
     fileTreesEmpty(button=true){
         const f = this.fileTrees
+
+        if (emptyObj(f )){return true}
+
+
+
         if ( 
             (
                 emptyObj(f.localFiles.added) && 
@@ -663,55 +712,67 @@ setLiveSync(){
         app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
     }
 
+    // default true in order for except to be updated
     async saveState(check= true) {
         console.log("save state")
+        if (this.prevData.error ){
+            const action = "save"
+            if (this.force !== action){
+                this.setForce(action)
+                this.show("Error detected - please clear in control panel or force action by retriggering "+action) 
+                return
+                
+            }
+        }
         if (!this.status){
             this.setStatus("💾");
-        try {
-            let files
-            if (check){
-            const webdavPromise = generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-            const localPromise = generateLocalHashTree(this.baseLocal, this.settings.exclusions);
+            try {
+                // let files
+                
+                if (check){
+                const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
+                const localPromise = this.checksum.generateLocalHashTree(this.baseLocal, this.settings.exclusions);
 
-            // Use Promise.all to execute both promises simultaneously
-            const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
-            const comparedFileTrees = await compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
-            this.fileTrees = comparedFileTrees;
-                files = localFiles
-        } else {
-            files = await generateLocalHashTree(this.baseLocal, this.settings.exclusions);
-        }
-
-            const currState =
-            {
-                date: Date.now(),
-                error: this.prevData.error,
-                files,
-                except: this.fileTrees.localFiles.except,
+                // Use Promise.all to execute both promises simultaneously
+                const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
+                const comparedFileTrees = await this.compare.compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
+                this.fileTrees = comparedFileTrees;
+                this.prevData.files = localFiles
+            } else {
+                this.prevData.files = await this.checksum.generateLocalHashTree(this.baseLocal, this.settings.exclusions);
             }
 
-            app.vault.adapter.write(this.prevPath, JSON.stringify(currState, null, 2))
-            console.log("saving successful!")
-        } catch (error) {
-            
-            console.log("Error occurred while saving State. ", error)
-            console.error("SAVESTATE", error)
-            // this.saveStateError(true)
-            this.prevData.error  = true
-            
-        } finally {
-            this.setStatus("");
+                this.prevData =
+                {
+                    date: Date.now(),
+                    error: this.prevData.error,
+                    files: this.prevData.files,
+                    except: this.fileTrees.localFiles.except,
+                }
+
+                app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
+                console.log("saving successful!")
+            } catch (error) {
+                
+                console.log("Error occurred while saving State. ", error)
+                console.error("SAVESTATE", error)
+                // this.saveStateError(true)
+                this.prevData.error  = true
+                return error
+                
+            } finally {
+                this.setStatus("");
+            }
+        } else {
+            console.log("Action currently active: ", this.status)
         }
-    } else {
-        console.log("Action currently active: ", this.status)
-    }
     }
 
     async setStatus(status: string){
         this.status = status;
         if (status === ""){
             if (this.prevData.error){
-                this.statusBar.setText("error");
+                this.statusBar.setText("❌");
                 this.statusBar.style.color = "red"
             } else {
                 this.statusBar.setText("✔️");
@@ -719,7 +780,27 @@ setLiveSync(){
             }
         } else {
         this.statusBar.setText(status);
-        this.statusBar.style.color = "blue"//"var(--status-bar-text-color)"
+        this.statusBar.style.color = "var(--status-bar-text-color)"
+    }
+}
+
+async setForce(action: string){
+    
+    this.force = action;
+    // await sleep(5000)
+    // this.force = ""
+}
+
+togglePause(){
+    this.pause = !this.pause
+
+    console.log(this.status)
+    if (this.pause){
+        this.status = "pause"
+        this.setStatus("⏸️")
+    } else {
+        this.status = ""
+        this.setStatus("")
     }
 }
 
