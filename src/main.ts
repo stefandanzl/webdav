@@ -412,7 +412,7 @@ setLiveSync(){
         
             try {
             const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-            const localPromise = this.checksum.generateLocalHashTree(this.baseLocal, this.settings.exclusions);
+            const localPromise = this.checksum.generateLocalHashTree(this.settings.exclusions);
 
             // Use Promise.all to execute both promises simultaneously
             const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
@@ -748,7 +748,7 @@ setLiveSync(){
                 
                 if (check){
                 const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-                const localPromise = this.checksum.generateLocalHashTree(this.baseLocal, this.settings.exclusions);
+                const localPromise = this.checksum.generateLocalHashTree(this.settings.exclusions);
 
                 // Use Promise.all to execute both promises simultaneously
                 const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
@@ -756,7 +756,7 @@ setLiveSync(){
                 this.fileTrees = comparedFileTrees;
                 this.prevData.files = localFiles
             } else {
-                this.prevData.files = await this.checksum.generateLocalHashTree(this.baseLocal, this.settings.exclusions);
+                this.prevData.files = await this.checksum.generateLocalHashTree(this.settings.exclusions);
             }
 
                 this.prevData =

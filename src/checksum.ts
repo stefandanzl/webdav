@@ -1,15 +1,17 @@
 // @ts-nocheck
-import {readFileSync, readdirSync, statSync} from 'fs';
-import { //join, 
-    extname} from 'path';
+// import {readFileSync, readdirSync, statSync} from 'fs';
+// import { //join, 
+//     extname} from 'path';
 import { createHash } from 'crypto';
 // import { writeFileSync } from 'fs';
 // import { configWebdav, findMatchingKeys } from './operations';
 import { WebDAVClient } from 'webdav';
 // import { findMatchingKeys } from './operations';
 import Cloudr from "./main"
-import {  join, // emptyObj, 
+import {  extname// emptyObj, join, 
 } from './util';
+import { TAbstractFile, TFile, TFolder } from 'obsidian';
+
 
 export class Checksum{
   
@@ -47,42 +49,45 @@ refineObject(data, exclusions) {
     return refinedObject;
 }
 
-calculateChecksum(filePath) {
-    const data = readFileSync(filePath);
-    return createHash('sha1').update(data).digest('hex');
-}
+// calculateChecksum(filePath) {
+//     const data = readFileSync(filePath);
+    
+    
+//     return createHash('sha1').update(data).digest('hex');
+// }
 
 
-processFolder(folderPath, checksumTable, exclusions, rootFolder) {
-    const files = readdirSync(folderPath).sort();
-    const fileChecksums = [];
+// processFolder(folderPath, checksumTable, exclusions, rootFolder) {
+//     const files = readdirSync(folderPath).sort();
+//     const fileChecksums = [];
 
-    for (const file of files) {
-        const filePath = join(folderPath, file).replace(/\\/g, '/');
-        const isFile = statSync(filePath).isFile();
+//     for (const file of files) {
+//         const filePath = join(folderPath, file).replace(/\\/g, '/');
+//         const isFile = statSync(filePath).isFile();
 
-        const normFilePath = filePath.slice(rootFolder.length) + (isFile ? '' : '/') 
+//         const normFilePath = filePath.slice(rootFolder.length) + (isFile ? '' : '/') 
 
-        // Check exclusions
-        if (this.isExcluded(normFilePath, exclusions)) {
-            continue; // Skip excluded files and folders
-        }
+//         // Check exclusions
+//         if (this.isExcluded(normFilePath, exclusions)) {
+//             continue; // Skip excluded files and folders
+//         }
 
-        if (isFile) {
-            const fileChecksum = this.calculateChecksum(filePath);
-            checksumTable[filePath.slice(rootFolder.length)] = fileChecksum;
-            fileChecksums.push(fileChecksum);
-        } else {
-            const subFolderChecksum = this.processFolder(filePath, checksumTable, exclusions, rootFolder);
-            fileChecksums.push(subFolderChecksum);
-            checksumTable[filePath.slice(rootFolder.length) + '/'] = ""; // subFolderChecksum;
-        }
-    }
+//         if (isFile) {
+//             const fileChecksum = this.calculateChecksum(filePath);
+//             checksumTable[filePath.slice(rootFolder.length)] = fileChecksum;
+//             fileChecksums.push(fileChecksum);
+//         } else {
+//             const subFolderChecksum = this.processFolder(filePath, checksumTable, exclusions, rootFolder);
+//             fileChecksums.push(subFolderChecksum);
+//             checksumTable[filePath.slice(rootFolder.length) + '/'] = ""; // subFolderChecksum;
+//         }
+//     }
 
-    const folderChecksum = createHash('sha1').update(fileChecksums.join('')).digest('hex');
-    return folderChecksum;
-}
+//     const folderChecksum = createHash('sha1').update(fileChecksums.join('')).digest('hex');
+//     return folderChecksum;
+// }
 
+// returns true if is excluded and false if is included
 isExcluded(filePath, exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) {
     const { extensions = [], directories = [], markers = [] } = exclusions;
 
@@ -135,15 +140,40 @@ removeBase(fileChecksums, basePath) {
   }
 
 
-
-generateLocalHashTree = (rootFolder: string, exclusions={}) => {
+generateLocalHashTree = (exclusions={}) => {
     // const rootFolder = self.basePath;
     const checksumTable = {};
 
     
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const rootChecksum = this.processFolder(rootFolder, checksumTable, exclusions, rootFolder);
+    const localFiles: TAbstractFile[] = this.plugin.app.vault.getAllLoadedFiles()
+
     
+
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    // const rootChecksum = this.processFolder(rootFolder, checksumTable, exclusions, rootFolder);
+    localFiles.forEach( async(element) => { 
+        // const filePath = element.path
+        
+        if (element instanceof TFile){
+            const filePath = element.path
+            if (this.isExcluded(filePath)){
+                return
+            }
+            const content = await this.plugin.app.vault.cachedRead(element)
+            checksumTable[filePath] = createHash('sha1').update(content).digest('hex');
+
+        } else if (element instanceof TFolder){
+            const filePath = element.path + "/"
+            if (this.isExcluded(filePath, exclusions)){
+                return
+            }
+            checksumTable[filePath] = "";
+
+        } else {
+            console.error("NEITHER FILE NOR FOLDER? ",element)
+        }
+
+    });
 
     return checksumTable
 }
