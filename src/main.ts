@@ -444,7 +444,7 @@ setLiveSync(){
     }
     }
 
-    async pull(button = true) {
+    async pull(button = true, inverted= false) {
         if (this.prevData.error){ 
             const action = "pull"
             if (this.force !== action){
@@ -471,11 +471,11 @@ setLiveSync(){
         }
         
         const f = this.fileTrees
-        if (button &&
+        if (!inverted && (button &&
             emptyObj(f.webdavFiles.added) && 
             emptyObj(f.webdavFiles.deleted) && 
             emptyObj(f.webdavFiles.modified)
-        ){
+        )){
             if (emptyObj(f.webdavFiles.except)){
             button && this.show("Nothing to pull")
             return }
@@ -486,12 +486,21 @@ setLiveSync(){
         }
         button && this.show("Pulling ...")
             
-                await Promise.all([
+            if (inverted === false){    
+            await Promise.all([
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
                     this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
                 ]);
+            } else {
+                await Promise.all([
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.localFiles.deleted, this.baseLocal, this.baseWebdav),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
+                    this.operations.deleteFilesLocal(this.fileTrees.localFiles.added),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
+                ]);
+            }
 
                 button && this.show("Pulling completed - checking again")
                 this.force = "save"
@@ -513,7 +522,7 @@ setLiveSync(){
     }
     }
 
-    async push(button = true) {
+    async push(button = true, inverted= false) {
         if (this.prevData.error){ 
             const action = "push"
             if (this.force !== action){
@@ -539,11 +548,11 @@ setLiveSync(){
 
         try{
         const f = this.fileTrees
-        if (button &&
+        if (!inverted && (button && 
             emptyObj(f.localFiles.added) && 
             emptyObj(f.localFiles.deleted) && 
             emptyObj(f.localFiles.modified)
-        ){
+        )){
             if (emptyObj(f.localFiles.except)){
                 button && this.show("Nothing to push")
                 return }
@@ -554,13 +563,21 @@ setLiveSync(){
         }
         button && this.show("Pushing ...")
         
-        
+        if (inverted === false){
             await Promise.all([
                 this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseLocal, this.baseWebdav),
                 this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
                 this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
                 this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
+            ]);
+        } else {
+            await Promise.all([
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.webdavFiles.deleted, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.webdavFiles.added),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
             ])
+        }
             
             
             button && this.show("Pushing completed - saving current state ...")

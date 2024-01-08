@@ -55,7 +55,7 @@ compareFileTreesExcept(webdavFiles:{added:object,modified:object,deleted:object,
   // console.log("SSSSSSSSSS");
 
     for (const file1 in localFiles.except){
-      if (localFiles.except[file1] == webdavFiles.except[file1]){
+      if (localFiles.except[file1] === webdavFiles.except[file1]){
         delete webdavFiles.except[file1];
         delete localFiles.except[file1];
         // console.log("deleted Except:",file1);

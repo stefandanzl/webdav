@@ -415,6 +415,30 @@ export class FileTreeModal extends Modal {
 
 
 
+
+    // Inverted buttons
+
+    const pullInvertButton = buttonDiv.createEl(
+        "button",{ text: '!PULL', cls: 'mod-cta' }
+    );
+    pullInvertButton.addEventListener('click', () => {
+        this.plugin.show("Inverted Pulling files from server ...")
+        this.plugin.pull(true,true).then(()=>{
+            fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2))
+        })
+    });
+
+    const pushInvertButton = buttonDiv.createEl(
+        "button",{ text: '!PUSH', cls: 'mod-cta' }
+    );
+    pushInvertButton.addEventListener('click', () => {
+        this.plugin.show("Inverted Pushing files to server ...")
+        this.plugin.push(true,true).then(()=>{
+            fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2))
+        })
+    });
+
+
          // const buttonDiv = contentEl.createEl("div");
     
     // buttonDiv.style.display = "flex"

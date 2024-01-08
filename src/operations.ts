@@ -173,9 +173,16 @@ downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePa
 
           // Download the file
           const localFilePath = join(localBasePath, filePath);
-          // @ts-ignore
-          const fileData: Buffer = await webdavClient.getFileContents(remotePath,{format: "binary"});
 
+          let fileData: Buffer
+          try{
+          // @ts-ignore
+          fileData= await webdavClient.getFileContents(remotePath,{format: "binary"});
+          } catch (error){
+            console.log("XXXXXXXXX DOWNLOAD FAILED; RETRYING ",remotePath)
+            // @ts-ignore
+           fileData = await webdavClient.getFileContents(remotePath,{format: "binary"});
+          }
           // const fileDataBuffer = Buffer.from(fileData, {format:})
 
           console.log("Trying to create: ", filePath)//, " Len: ", fileData.length);
