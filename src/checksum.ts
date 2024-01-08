@@ -164,7 +164,7 @@ generateLocalHashTree = (exclusions={}) => {
 
         } else if (element instanceof TFolder){
             const filePath = element.path + "/"
-            if (this.isExcluded(filePath, exclusions)){
+            if (this.isExcluded(filePath, exclusions) || filePath === "//"){
                 return
             }
             checksumTable[filePath] = "";
