@@ -34,7 +34,7 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     overrideVault: "",
     exclusions: { 
         directories: ["node_modules", ".git", "webdav"], 
-        extensions: [], 
+        extensions: [".exe"], 
         markers: ["prevdata.json"],
     },
 
@@ -379,7 +379,7 @@ export class FileTreeModal extends Modal {
     );
     saveButton.addEventListener('click', () => {
         this.plugin.show("Saving current vault file state for future synchronisation actions")
-        this.plugin.saveState()
+        this.plugin.saveState(true)
     });
 
     

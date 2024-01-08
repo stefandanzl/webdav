@@ -10,11 +10,12 @@ import { WebDAVClient } from 'webdav';
 import Cloudr from "./main"
 import {  extname// emptyObj, join, 
 } from './util';
-import { TAbstractFile, TFile, TFolder } from 'obsidian';
+import { TAbstractFile, TFile, TFolder,  normalizePath, // App, Vault,
+} from 'obsidian';
 
 
 export class Checksum{
-  
+    localFiles: object;
 
     constructor(public plugin: Cloudr){
         this.plugin = plugin;
@@ -33,7 +34,7 @@ refineObject(data, exclusions) {
         const isDirectory = type === 'directory';
         const fullPath = isDirectory ? filename + '/' : filename;
 
-        if (this.isExcluded(fullPath, exclusions)) {
+        if (this.isExcluded(fullPath)) {
             return; // Skip excluded files and folders
         }
 
@@ -88,8 +89,9 @@ refineObject(data, exclusions) {
 // }
 
 // returns true if is excluded and false if is included
-isExcluded(filePath, exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) {
-    const { extensions = [], directories = [], markers = [] } = exclusions;
+isExcluded(filePath){//, exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) {
+    // const { extensions = [], directories = [], markers = [] } = exclusions;
+    const { extensions = [], directories = [], markers = [] } = this.plugin.settings.exclusions
 
     const folders = filePath.split('/');
     if(!filePath.endsWith("/")){
@@ -139,43 +141,81 @@ removeBase(fileChecksums, basePath) {
     return removedBase;
   }
 
-
-generateLocalHashTree = (exclusions={}) => {
-    // const rootFolder = self.basePath;
-    const checksumTable = {};
-
+  async getHiddenLocalFiles(path: string){
+    const {files, folders} = await this.plugin.app.vault.adapter.list(path)
     
-    const localFiles: TAbstractFile[] = this.plugin.app.vault.getAllLoadedFiles()
+    for (const file of files){
+       try{ // const filePath = files[file]
+        // this.plugin.app.vault.
+        console.log(file)
+        if (this.isExcluded(file)){
+            return
+        }
+        const data: string = await app.vault.adapter.read(file)
+        this.localFiles[file]= createHash('sha1').update(data).digest('hex');
+       }catch(error){
+        console.error("TF",file,error)
+       }
+    }
+
+    for (const folder of folders){
+        try{
+            console.log(folder+"/")
+            if (this.isExcluded(folder+"/")){
+                return
+            }
+        this.localFiles[folder+"/"]= ""
+        this.getHiddenLocalFiles(folder)
+        }catch(error){
+            console.error("AA",error, folder)
+        }
+    }
+
+    // return checksumTable
+}
+
+
+generateLocalHashTree = async (exclusions={}) => {
+    // const rootFolder = self.basePath;
+    // const checksumTable = {};
+    this.localFiles = {}
+    
+    const localTFiles: TAbstractFile[] = this.plugin.app.vault.getAllLoadedFiles()
 
     
 
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     // const rootChecksum = this.processFolder(rootFolder, checksumTable, exclusions, rootFolder);
-    localFiles.forEach( async(element) => { 
+    // localFiles.forEach( async(element) => { 
+        await Promise.all(localTFiles.map(async (element) => {
         // const filePath = element.path
-        
+        console.log("FILE",element)
         if (element instanceof TFile){
             const filePath = element.path
             if (this.isExcluded(filePath)){
                 return
             }
             const content = await this.plugin.app.vault.cachedRead(element)
-            checksumTable[filePath] = createHash('sha1').update(content).digest('hex');
+            this.localFiles[filePath] = createHash('sha1').update(content).digest('hex');
 
         } else if (element instanceof TFolder){
             const filePath = element.path + "/"
-            if (this.isExcluded(filePath, exclusions) || filePath === "//"){
+            if (this.isExcluded(filePath) || filePath === "//"){
                 return
             }
-            checksumTable[filePath] = "";
+            this.localFiles[filePath] = "";
 
         } else {
             console.error("NEITHER FILE NOR FOLDER? ",element)
         }
+        
+        
+    }));
+    this.localFiles[".obsidian/"]= ""
+    await this.getHiddenLocalFiles(normalizePath(".obsidian"))
+    
 
-    });
-
-    return checksumTable
+    return this.localFiles
 }
 
 

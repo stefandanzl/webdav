@@ -64,12 +64,12 @@ export default class Cloudr extends Plugin {
         this.operations = new Operations(this)
         
 
-        const adapter = this.app.vault.adapter;
-        if (adapter instanceof FileSystemAdapter) {
-            this.baseLocal = adapter.getBasePath().replace(/\\/g, '/') + "/";
-            // console.log("Base local: ", this.baseLocal)
+        // const adapter = this.app.vault.adapter;
+        // if (adapter instanceof FileSystemAdapter) {
+        //     this.baseLocal = adapter.getBasePath().replace(/\\/g, '/') + "/";
+        //     // console.log("Base local: ", this.baseLocal)
 
-        } else { console.log("ERROR Localpath") }
+        // } else { console.log("ERROR Localpath") }
 
         this.setBaseWebdav()
 
@@ -236,8 +236,8 @@ export default class Cloudr extends Plugin {
                 // this.pull()
                 
                await Promise.all([
-                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
-                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added,  this.baseWebdav),
+                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified,  this.baseWebdav),
                 this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
                     // downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
                 ]);
@@ -488,17 +488,17 @@ setLiveSync(){
             
             if (inverted === false){    
             await Promise.all([
-                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
-                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added,  this.baseWebdav),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified,  this.baseWebdav),
                     this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
-                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except,  this.baseWebdav)
                 ]);
             } else {
                 await Promise.all([
-                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.localFiles.deleted, this.baseLocal, this.baseWebdav),
-                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.localFiles.deleted,  this.baseWebdav),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified,  this.baseWebdav),
                     this.operations.deleteFilesLocal(this.fileTrees.localFiles.added),
-                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except,  this.baseWebdav)
                 ]);
             }
 
@@ -565,17 +565,17 @@ setLiveSync(){
         
         if (inverted === false){
             await Promise.all([
-                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseLocal, this.baseWebdav),
-                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added,  this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified,  this.baseWebdav),
                 this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
-                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except,  this.baseWebdav),
             ]);
         } else {
             await Promise.all([
-                this.operations.uploadFiles(this.webdavClient, this.fileTrees.webdavFiles.deleted, this.baseLocal, this.baseWebdav),
-                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.webdavFiles.deleted,  this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified,  this.baseWebdav),
                 this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.webdavFiles.added),
-                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except,  this.baseWebdav),
             ])
         }
             
@@ -634,8 +634,8 @@ setLiveSync(){
                 try {
             // await this.pull(false)
             await Promise.all([
-                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseLocal, this.baseWebdav),
-                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added,  this.baseWebdav),
+                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified,  this.baseWebdav),
                 this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
                 // downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
             ]);
@@ -648,8 +648,8 @@ setLiveSync(){
             try{
             // await this.push(false);
             await Promise.all([
-                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseLocal, this.baseWebdav),
-                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseLocal, this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added,  this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified,  this.baseWebdav),
                 this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
                 // uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
             ])
@@ -746,7 +746,7 @@ setLiveSync(){
             try {
                 // let files
                 
-                if (check){
+            if (check){
                 const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
                 const localPromise = this.checksum.generateLocalHashTree(this.settings.exclusions);
 
@@ -754,11 +754,13 @@ setLiveSync(){
                 const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
                 const comparedFileTrees = await this.compare.compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
                 this.fileTrees = comparedFileTrees;
-                this.prevData.files = localFiles
+                this.prevData.files = localFiles;
+                console.log(localFiles)
             } else {
                 this.prevData.files = await this.checksum.generateLocalHashTree(this.settings.exclusions);
             }
 
+            console.log("SwagggG",this.prevData.files)
                 this.prevData =
                 {
                     date: Date.now(),
@@ -766,8 +768,8 @@ setLiveSync(){
                     files: this.prevData.files,
                     except: this.fileTrees.localFiles.except,
                 }
-
-                app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
+                console.log("SwaggeeegG",this.prevData.files)
+                this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
                 console.log("saving successful!")
             } catch (error) {
                 

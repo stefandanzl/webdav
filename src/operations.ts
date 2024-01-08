@@ -2,13 +2,14 @@ import Cloudr from "./main"
 // import * as fs from 'fs';
 // import * as path from 'path';
 import {WebDAVClient, createClient } from "webdav";
-import * as fsp from 'fs/promises';
+// import * as fsp from 'fs/promises';
 // import * as fs from "fs"
 // import { join } from "path";
 import { dirname } from "path";
 // import { PathLike } from "fs";
 import { join, // emptyObj 
 } from './util';
+import { normalizePath } from "obsidian";
 
 export class Operations{
   
@@ -120,7 +121,7 @@ return client
 //   await Promise.all(promises);
 // };
 
-downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePath: string, remoteBasePath: string) => {
+downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, remoteBasePath: string) => {
   if (filesMap == undefined || Object.keys(filesMap).length === 0) {
     console.log('Nothing to download.');
     return;
@@ -131,14 +132,16 @@ downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePa
     return;
   }
 
-  // Ensure local base path exists
-  try {
-    await fsp.access(localBasePath);
-  } catch (error) {
-    // Local directory does not exist, create it
-    console.error("creating directory localBasePath", localBasePath);
-    await fsp.mkdir(localBasePath, { recursive: true });
-  }
+  // // Ensure local base path exists
+  // try {
+  //   // await fsp.access(localBasePath);
+  //   await fsp.access(localBasePath);
+  // } catch (error) {
+  //   // Local directory does not exist, create it
+  //   console.error("Error creating directory localBasePath", localBasePath,error);
+  //   await fsp.mkdir(localBasePath, { recursive: true });
+  //   await this.plugin.app.vault.adapter.mkdir(normalizePath(localBasePath))
+  // }
 
   try {
     // Use Promise.all to wait for all asynchronous operations
@@ -172,7 +175,7 @@ downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePa
           }
 
           // Download the file
-          const localFilePath = join(localBasePath, filePath);
+          // const localFilePath = join(localBasePath, filePath);
 
           let fileData: Buffer
           try{
@@ -188,7 +191,8 @@ downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePa
           console.log("Trying to create: ", filePath)//, " Len: ", fileData.length);
           await app.vault.adapter.writeBinary(filePath, fileData);
 
-          console.log(`Downloaded: ${remotePath} to ${localFilePath}`);
+          // console.log(`Downloaded: ${remotePath} to ${localFilePath}`);
+          console.log(`Downloaded: ${remotePath}`);
         } catch (error) {
           console.error("Error in downloadFiles:", error);
           // Handle errors here
@@ -201,7 +205,7 @@ downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, localBasePa
 };
 
 
-uploadFiles = async (webDavClient: WebDAVClient, fileChecksums: object | undefined, localBasePath: string, remoteBasePath: string) => {
+uploadFiles = async (webDavClient: WebDAVClient, fileChecksums: object | undefined, remoteBasePath: string) => {
   if (fileChecksums == undefined ||Object.keys(fileChecksums).length === 0) {
     console.log('No files to upload.');
     return
@@ -227,10 +231,12 @@ uploadFiles = async (webDavClient: WebDAVClient, fileChecksums: object | undefin
 
       try {
       // Construct the full local file path
-      const fullPath = join(localBasePath, localFilePath);
+      // const fullPath = join(localBasePath, localFilePath);
 
       // Read the local file content
-      const fileContent = await fsp.readFile(fullPath);
+      // const fileContent = await fsp.readFile(fullPath);
+      // const fileContent = await this.plugin.app.vault.adapter.read(normalizePath(fullPath));
+      const fileContent = await this.plugin.app.vault.adapter.read(normalizePath(localFilePath));
 
       // Construct the remote file path
       const remoteFilePath = join(remoteBasePath, localFilePath);
