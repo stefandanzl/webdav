@@ -151,7 +151,7 @@ removeBase(fileChecksums, basePath) {
         if (this.isExcluded(file)){
             return
         }
-        const data: string = await this.plugin.app.vault.adapter.read(file)
+        const data: string = await this.plugin.app.vault.adapter.read(normalizePath(file))
         this.localFiles[file]= createHash('sha1').update(data).digest('hex');
        }catch(error){
         console.error("TF",file,error)
