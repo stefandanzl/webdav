@@ -210,7 +210,7 @@ generateLocalHashTree = async (exclusions={}) => {
             console.error("NEITHER FILE NOR FOLDER? ",element)
         }
     } catch (error){
-        console.error("localTFiles Errororr",element)
+        console.error("localTFiles Errororr",element,error)
     }
         
     }));
