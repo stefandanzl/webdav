@@ -99,7 +99,7 @@ export default class Cloudr extends Plugin {
           });
 
         try {
-            this.prevData = JSON.parse(await app.vault.adapter.read(this.prevPath))
+            this.prevData = JSON.parse(await this.app.vault.adapter.read(this.prevPath))
             // prevData.date = new Date(prevData.date)
             // this.prevData = prevData
 

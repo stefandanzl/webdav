@@ -151,7 +151,7 @@ removeBase(fileChecksums, basePath) {
         if (this.isExcluded(file)){
             return
         }
-        const data: string = await app.vault.adapter.read(file)
+        const data: string = await this.plugin.app.vault.adapter.read(file)
         this.localFiles[file]= createHash('sha1').update(data).digest('hex');
        }catch(error){
         console.error("TF",file,error)
@@ -189,13 +189,14 @@ generateLocalHashTree = async (exclusions={}) => {
     // localFiles.forEach( async(element) => { 
         await Promise.all(localTFiles.map(async (element) => {
         // const filePath = element.path
+        try{
         console.log("FILE",element)
         if (element instanceof TFile){
             const filePath = element.path
             if (this.isExcluded(filePath)){
                 return
             }
-            const content = await this.plugin.app.vault.cachedRead(element)
+            const content = await this.plugin.app.vault.read(element)
             this.localFiles[filePath] = createHash('sha1').update(content).digest('hex');
 
         } else if (element instanceof TFolder){
@@ -208,7 +209,9 @@ generateLocalHashTree = async (exclusions={}) => {
         } else {
             console.error("NEITHER FILE NOR FOLDER? ",element)
         }
-        
+    } catch (error){
+        console.error("localTFiles Errororr",element)
+    }
         
     }));
     this.localFiles[".obsidian/"]= ""
