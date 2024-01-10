@@ -12,8 +12,9 @@ import {  Compare } from './compare';
 import { Operations,
     //downloadFiles, uploadFiles, deleteFilesLocal, deleteFilesWebdav, join, configWebdav, emptyObj
 } from './operations';
-import { createHash } from 'crypto';
+// import { createHash } from 'crypto';
 import { join, emptyObj } from './util';
+import * as CryptoJS from "crypto-js"
 
 
 
@@ -110,7 +111,7 @@ export default class Cloudr extends Plugin {
                 files: {},
             }
             
-            app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
+            this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
             console.error("ERROR LOADING PREVIOUS DATA! RESET prev.json to {error: true, files: {}} ")
         }
 
@@ -319,7 +320,9 @@ async liveSyncCallback(abstractFile: TAbstractFile){
             
             console.log(filePath)
             const data = await this.app.vault.read(file)
-            const hash = createHash('sha1').update(data).digest('hex');
+            // const hash = createHash('sha1').update(data).digest('hex');
+            const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+
 
             const remoteFilePath = join(this.baseWebdav, filePath);
             await this.webdavClient.putFileContents(remoteFilePath, data);

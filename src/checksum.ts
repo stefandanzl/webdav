@@ -2,7 +2,7 @@
 // import {readFileSync, readdirSync, statSync} from 'fs';
 // import { //join, 
 //     extname} from 'path';
-import { createHash } from 'crypto';
+// import { createHash } from 'crypto';
 // import { writeFileSync } from 'fs';
 // import { configWebdav, findMatchingKeys } from './operations';
 import { WebDAVClient } from 'webdav';
@@ -12,6 +12,7 @@ import {  extname// emptyObj, join,
 } from './util';
 import { TAbstractFile, TFile, TFolder,  normalizePath, // App, Vault,
 } from 'obsidian';
+import * as CryptoJS from "crypto-js"
 
 
 export class Checksum{
@@ -151,8 +152,17 @@ removeBase(fileChecksums, basePath) {
         if (this.isExcluded(file)){
             return
         }
-        const data: string = await this.plugin.app.vault.adapter.read(normalizePath(file))
-        this.localFiles[file]= createHash('sha1').update(data).digest('hex');
+
+        const apiPath = file.replace(".obsidian",this.plugin.app.vault.configDir)
+
+        console.log(apiPath)
+
+        const data  = await this.plugin.app.vault.adapter.read(apiPath)
+
+        console.log(data.slice(0,15))
+
+        // this.localFiles[file]= createHash('sha1').update(data).digest('hex');
+        this.localFiles[file] = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
        }catch(error){
         console.error("TF",file,error)
        }
@@ -165,7 +175,7 @@ removeBase(fileChecksums, basePath) {
                 return
             }
         this.localFiles[folder+"/"]= ""
-        this.getHiddenLocalFiles(folder)
+        this.getHiddenLocalFiles(normalizePath(folder))
         }catch(error){
             console.error("AA",error, folder)
         }
@@ -190,14 +200,15 @@ generateLocalHashTree = async (exclusions={}) => {
         await Promise.all(localTFiles.map(async (element) => {
         // const filePath = element.path
         try{
-        console.log("FILE",element)
+        // console.log("FILE",element)
         if (element instanceof TFile){
             const filePath = element.path
             if (this.isExcluded(filePath)){
                 return
             }
             const content = await this.plugin.app.vault.read(element)
-            this.localFiles[filePath] = createHash('sha1').update(content).digest('hex');
+            // this.localFiles[filePath] = createHash('sha1').update(content).digest('hex');
+            this.localFiles[filePath] = CryptoJS.SHA1(content).toString(CryptoJS.enc.Hex);
 
         } else if (element instanceof TFolder){
             const filePath = element.path + "/"
