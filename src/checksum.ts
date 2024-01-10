@@ -8,11 +8,11 @@
 import { WebDAVClient } from 'webdav';
 // import { findMatchingKeys } from './operations';
 import Cloudr from "./main"
-import {  extname// emptyObj, join, 
+import {  extname, sha1 // emptyObj, join, 
 } from './util';
 import { TAbstractFile, TFile, TFolder,  normalizePath, // App, Vault,
 } from 'obsidian';
-import * as CryptoJS from "crypto-js"
+// import * as CryptoJS from "crypto-js"
 // import { sha1 } from './sha1-wrapper';
 // import {sha1} from "js-sha1"
 
@@ -164,8 +164,9 @@ removeBase(fileChecksums, basePath) {
         // console.log(data.slice(0,15))
 
         // this.localFiles[file]= createHash('sha1').update(data).digest('hex');
-        this.localFiles[file] = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+        // this.localFiles[file] = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
         // this.localFiles[file] = sha1.update(data).hex();
+        this.localFiles[file] = sha1(data)
 
        }catch(error){
         console.error("TF",file,error)
@@ -212,8 +213,9 @@ generateLocalHashTree = async (exclusions={}) => {
             }
             const content = await this.plugin.app.vault.read(element)
             // this.localFiles[filePath] = createHash('sha1').update(content).digest('hex');
-            this.localFiles[filePath] = CryptoJS.SHA1(content).toString(CryptoJS.enc.Hex);
+            // this.localFiles[filePath] = CryptoJS.SHA1(content).toString(CryptoJS.enc.Hex);
             // this.localFiles[filePath] = sha1.update(content).hex();
+            this.localFiles[filePath] = sha1(content)
 
         } else if (element instanceof TFolder){
             const filePath = element.path + "/"

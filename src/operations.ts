@@ -5,11 +5,12 @@ import {WebDAVClient, createClient } from "webdav";
 // import * as fsp from 'fs/promises';
 // import * as fs from "fs"
 // import { join } from "path";
-import { dirname } from "path";
+// import { dirname } from "path";
 // import { PathLike } from "fs";
-import { join, // emptyObj 
+import { join, dirname// emptyObj 
 } from './util';
 import { normalizePath } from "obsidian";
+
 
 export class Operations{
   
