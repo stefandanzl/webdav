@@ -13,8 +13,9 @@ import { Operations,
     //downloadFiles, uploadFiles, deleteFilesLocal, deleteFilesWebdav, join, configWebdav, emptyObj
 } from './operations';
 // import { createHash } from 'crypto';
-import { join, emptyObj, sha1 } from './util';
-// import * as CryptoJS from "crypto-js"
+import { join, emptyObj, //sha1 
+} from './util';
+import * as CryptoJS from "crypto-js"
 // import { sha1 } from './sha1-wrapper';
 // import {sha1} from "js-sha1";
 // import * as sha1 from "sha1"
@@ -324,9 +325,9 @@ async liveSyncCallback(abstractFile: TAbstractFile){
             console.log(filePath)
             const data = await this.app.vault.read(file)
             // const hash = createHash('sha1').update(data).digest('hex');
-            // const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+            const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
             // const hash = sha1.update(data).hex();
-            const hash = sha1(data)
+            // const hash = sha1(data)
 
 
             const remoteFilePath = join(this.baseWebdav, filePath);
@@ -740,8 +741,9 @@ setLiveSync(){
     // default true in order for except to be updated
     async saveState(check= true) {
         console.log("save state")
+        const action = "save"
         if (this.prevData.error ){
-            const action = "save"
+            
             if (this.force !== action){
                 this.setForce(action)
                 this.show("Error detected - please clear in control panel or force action by retriggering "+action) 
@@ -749,7 +751,7 @@ setLiveSync(){
                 
             }
         }
-        if (!this.status){
+        if (!this.status || this.force === action){
             this.setStatus("💾");
             try {
                 // let files
@@ -777,8 +779,9 @@ setLiveSync(){
                     except: this.fileTrees.localFiles.except,
                 }
                 console.log("SwaggeeegG",this.prevData.files)
-                this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
+                await this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
                 console.log("saving successful!")
+                this.show("Saved current vault state!")
             } catch (error) {
                 
                 console.log("Error occurred while saving State. ", error)
