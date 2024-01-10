@@ -15,6 +15,9 @@ import { Operations,
 // import { createHash } from 'crypto';
 import { join, emptyObj } from './util';
 import * as CryptoJS from "crypto-js"
+// import { sha1 } from './sha1-wrapper';
+// import {sha1} from "js-sha1";
+// import * as sha1 from "sha1"
 
 
 
@@ -322,6 +325,7 @@ async liveSyncCallback(abstractFile: TAbstractFile){
             const data = await this.app.vault.read(file)
             // const hash = createHash('sha1').update(data).digest('hex');
             const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+            // const hash = sha1.update(data).hex();
 
 
             const remoteFilePath = join(this.baseWebdav, filePath);

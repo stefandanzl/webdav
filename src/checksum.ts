@@ -13,6 +13,8 @@ import {  extname// emptyObj, join,
 import { TAbstractFile, TFile, TFolder,  normalizePath, // App, Vault,
 } from 'obsidian';
 import * as CryptoJS from "crypto-js"
+// import { sha1 } from './sha1-wrapper';
+// import {sha1} from "js-sha1"
 
 
 export class Checksum{
@@ -153,16 +155,18 @@ removeBase(fileChecksums, basePath) {
             return
         }
 
-        const apiPath = file.replace(".obsidian",this.plugin.app.vault.configDir)
+        // const apiPath = file.replace(".obsidian",this.plugin.app.vault.configDir)
 
-        console.log(apiPath)
+        // console.log(apiPath)
 
-        const data  = await this.plugin.app.vault.adapter.read(apiPath)
+        const data  = await this.plugin.app.vault.adapter.read(file)
 
-        console.log(data.slice(0,15))
+        // console.log(data.slice(0,15))
 
         // this.localFiles[file]= createHash('sha1').update(data).digest('hex');
         this.localFiles[file] = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+        // this.localFiles[file] = sha1.update(data).hex();
+
        }catch(error){
         console.error("TF",file,error)
        }
@@ -209,6 +213,7 @@ generateLocalHashTree = async (exclusions={}) => {
             const content = await this.plugin.app.vault.read(element)
             // this.localFiles[filePath] = createHash('sha1').update(content).digest('hex');
             this.localFiles[filePath] = CryptoJS.SHA1(content).toString(CryptoJS.enc.Hex);
+            // this.localFiles[filePath] = sha1.update(content).hex();
 
         } else if (element instanceof TFolder){
             const filePath = element.path + "/"
