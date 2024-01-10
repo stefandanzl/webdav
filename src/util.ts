@@ -1,6 +1,7 @@
 // @ts-nocheck
 /* eslint-disable no-var */
-
+// import * as CryptoJS from "crypto-js"
+// import { createHash } from 'crypto';
 
 export const join = (...args: string[]) => {
     const separator = '/'; // Change this to '\\' for backslash on Windows
@@ -54,6 +55,8 @@ export const dirname = (filePath: string): string => {
   
     return filePath.substring(0, lastSeparatorIndex);
   }
+
+
 
 
 

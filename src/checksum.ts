@@ -8,13 +8,16 @@
 import { WebDAVClient } from 'webdav';
 // import { findMatchingKeys } from './operations';
 import Cloudr from "./main"
-import {  extname,// sha1 // emptyObj, join, 
+import {  extname, //checksum// sha1 // emptyObj, join, 
 } from './util';
 import { TAbstractFile, TFile, TFolder,  normalizePath, // App, Vault,
 } from 'obsidian';
-import * as CryptoJS from "crypto-js"
+// import * as CryptoJS from "crypto-js"
 // import { sha1 } from './sha1-wrapper';
 // import {sha1} from "js-sha1"
+// import * as CryptoJS from "crypto-js"
+import { createHash } from 'crypto';
+import {createHash as uintCreateHash} from "sha1-uint8array";
 
 
 export class Checksum{
@@ -144,50 +147,120 @@ removeBase(fileChecksums, basePath) {
     return removedBase;
   }
 
-  async getHiddenLocalFiles(path: string){
-    const {files, folders} = await this.plugin.app.vault.adapter.list(path)
+//   async getHiddenLocalFiles(path: string){
+//     const {files, folders} = await this.plugin.app.vault.adapter.list(path)
     
-    for (const file of files){
-       try{ // const filePath = files[file]
-        // this.plugin.app.vault.
-        console.log(file)
-        if (this.isExcluded(file)){
-            return
-        }
+//     for (const file of files){
+//        try{ // const filePath = files[file]
+//         // this.plugin.app.vault.
+//         console.log(file)
+//         if (this.isExcluded(file)){
+//             return
+//         }
 
-        // const apiPath = file.replace(".obsidian",this.plugin.app.vault.configDir)
+//         // const apiPath = file.replace(".obsidian",this.plugin.app.vault.configDir)
 
-        // console.log(apiPath)
+//         // console.log(apiPath)
 
-        const data  = await this.plugin.app.vault.adapter.read(file)
+//         const data  = await this.plugin.app.vault.adapter.read(file)
 
-        // console.log(data.slice(0,15))
+//         // console.log(data.slice(0,15))
 
-        // this.localFiles[file]= createHash('sha1').update(data).digest('hex');
-        this.localFiles[file] = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
-        // this.localFiles[file] = sha1.update(data).hex();
-        // this.localFiles[file] = sha1(data)
+//         // this.localFiles[file]= createHash('sha1').update(data).digest('hex');
+//         this.localFiles[file] = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+//         // this.localFiles[file] = sha1.update(data).hex();
+//         // this.localFiles[file] = sha1(data)
 
-       }catch(error){
-        console.error("TF",file,error)
-       }
-    }
+//        }catch(error){
+//         console.error("TF",file,error)
+//        }
+//     }
 
-    for (const folder of folders){
-        try{
-            console.log(folder+"/")
-            if (this.isExcluded(folder+"/")){
-                return
-            }
-        this.localFiles[folder+"/"]= ""
-        this.getHiddenLocalFiles(normalizePath(folder))
-        }catch(error){
-            console.error("AA",error, folder)
-        }
-    }
+//     for (const folder of folders){
+//         try{
+//             console.log(folder+"/")
+//             if (this.isExcluded(folder+"/")){
+//                 return
+//             }
+//         this.localFiles[folder+"/"]= ""
+//         this.getHiddenLocalFiles(normalizePath(folder))
+//         }catch(error){
+//             console.error("AA",error, folder)
+//         }
+//     }
 
-    // return checksumTable
+//     // return checksumTable
+// }
+sha1(data){
+    
+    if (this.plugin.mobile){
+        // return CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+        return uintCreateHash().update(data).digest("hex");
+    } else {
+        return createHash('sha1').update(data).digest('hex');
+    }   
+
+
 }
+
+async getHiddenLocalFiles(path: string, concurrency= 15) {
+    const { files, folders } = await this.plugin.app.vault.adapter.list(path);
+
+    const processFile = async (file) => {
+        try {
+            console.log(file);
+
+            if (this.isExcluded(file)) {
+                return;
+            }
+
+            const data = await this.plugin.app.vault.adapter.read(file);
+            // this.localFiles[file] = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+            this.localFiles[file] = this.sha1(data)
+
+        } catch (error) {
+            console.error("TF", file, error);
+        }
+    };
+
+    // Use a helper function to limit concurrency
+    const processWithConcurrency = async (files, worker) => {
+        const results = [];
+        let index = 0;
+
+        const processNext = async () => {
+            if (index < files.length) {
+                const current = index++;
+                results[current] = await worker(files[current]);
+                await processNext();
+            }
+        };
+
+        const workers = Array.from({ length: concurrency }, () => processNext());
+
+        await Promise.all(workers);
+        return results;
+    };
+
+    // Process files concurrently with the specified concurrency level
+    await processWithConcurrency(files, processFile);
+
+    // Recursively process folders concurrently
+    await Promise.all(folders.map(async (folder) => {
+        try {
+            console.log(folder + "/");
+
+            if (!this.isExcluded(folder + "/")) {
+                this.localFiles[folder + "/"] = "";
+                await this.getHiddenLocalFiles(normalizePath(folder), concurrency);
+            }
+
+        } catch (error) {
+            console.error("AA", error, folder);
+        }
+    }));
+}
+
 
 
 generateLocalHashTree = async (exclusions={}) => {
@@ -213,9 +286,9 @@ generateLocalHashTree = async (exclusions={}) => {
             }
             const content = await this.plugin.app.vault.read(element)
             // this.localFiles[filePath] = createHash('sha1').update(content).digest('hex');
-            this.localFiles[filePath] = CryptoJS.SHA1(content).toString(CryptoJS.enc.Hex);
+            // this.localFiles[filePath] = CryptoJS.SHA1(content).toString(CryptoJS.enc.Hex);
             // this.localFiles[filePath] = sha1.update(content).hex();
-            // this.localFiles[filePath] = sha1(content)
+            this.localFiles[filePath] = this.sha1(content)
 
         } else if (element instanceof TFolder){
             const filePath = element.path + "/"

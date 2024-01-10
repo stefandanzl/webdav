@@ -398,7 +398,7 @@ export class FileTreeModal extends Modal {
     );
     syncButton.addEventListener('click', () => {
         // this.plugin.show("Synchronizing files with server ...")
-        this.plugin.fullSync().then(()=>{
+        this.plugin.fullSync(true,false).then(()=>{
             fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2))
         })
     });

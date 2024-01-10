@@ -1,6 +1,6 @@
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-import { FileSystemAdapter, TFile, TAbstractFile , Notice, Plugin,// App, Editor, MarkdownView, Modal, PluginSettingTab, Setting
+import { FileSystemAdapter, TFile, TAbstractFile , Notice, Plugin, Platform,// App, Editor, MarkdownView, Modal, PluginSettingTab, Setting
  } from 'obsidian';
 
 // import { readdirSync } from 'fs';
@@ -13,9 +13,9 @@ import { Operations,
     //downloadFiles, uploadFiles, deleteFilesLocal, deleteFilesWebdav, join, configWebdav, emptyObj
 } from './operations';
 // import { createHash } from 'crypto';
-import { join, emptyObj, //sha1 
+import { join, emptyObj,//sha1 
 } from './util';
-import * as CryptoJS from "crypto-js"
+// import * as CryptoJS from "crypto-js"
 // import { sha1 } from './sha1-wrapper';
 // import {sha1} from "js-sha1";
 // import * as sha1 from "sha1"
@@ -54,6 +54,7 @@ export default class Cloudr extends Plugin {
     notice: Notice;
     pause: boolean;
     force: string;
+    mobile: boolean;
 
 
 
@@ -67,6 +68,8 @@ export default class Cloudr extends Plugin {
         this.compare = new Compare(this)
         this.checksum = new Checksum(this)
         this.operations = new Operations(this)
+
+        this.mobile = Platform.isMobileApp
         
 
         // const adapter = this.app.vault.adapter;
@@ -195,7 +198,8 @@ export default class Cloudr extends Plugin {
             name: 'Reset Error state',
             callback: async () => {
 
-                this.prevData.error= false
+                // this.prevData.error= false
+                this.setError(false)
 
             }
         });
@@ -325,9 +329,9 @@ async liveSyncCallback(abstractFile: TAbstractFile){
             console.log(filePath)
             const data = await this.app.vault.read(file)
             // const hash = createHash('sha1').update(data).digest('hex');
-            const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+            // const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
             // const hash = sha1.update(data).hex();
-            // const hash = sha1(data)
+            const hash = this.checksum.sha1(data)
 
 
             const remoteFilePath = join(this.baseWebdav, filePath);
@@ -359,8 +363,9 @@ setLiveSync(){
 }
 
     async errorWrite() {
-        this.prevData.error = true;
-        app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
+        // this.prevData.error = true;
+        this.setError(true)
+        this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
     }
 
     async test(button = true) {
@@ -384,7 +389,8 @@ setLiveSync(){
     
             // If successful, log the results
             console.log("WebDAV connection test successful. Directory contents:", JSON.stringify(directoryContents, null, 2));
-            this.prevData.error = false;
+            // this.prevData.error = false;
+            this.setError(false)
             return true;
         } catch (error) {
             // If an error occurs, log the error details
@@ -392,7 +398,8 @@ setLiveSync(){
             if (button) {
                 this.show(`WebDAV connection test failed. Error: ${error}`);
             }
-            this.prevData.error = true;
+            // this.prevData.error = true;
+            this.setError(true)
             return false;
         } finally {
             this.setStatus("");
@@ -408,12 +415,14 @@ setLiveSync(){
             const dir = await this.webdavClient.getDirectoryContents(this.settings.webdavPath)
 
             if (dir){
-                this.prevData.error = false
+                // this.prevData.error = false
+                this.setError(false)
             }
             } catch (error){
                 this.show("No Connection to server! \n"+error.message)
                 console.error("CHECK Connection issue: ",error)
-                this.prevData.error = true
+                // this.prevData.error = true
+                this.setError(true)
                 this.setStatus("")
                 return error
             }
@@ -442,7 +451,8 @@ setLiveSync(){
             button && this.show("CHECK ERROR: ", error)
             console.error("CHECK", error)
             // this.saveStateError(true)
-            this.prevData.error = true
+            // this.prevData.error = true
+            this.setError(true)
             return error
         } finally{
             this.setStatus("");
@@ -519,7 +529,8 @@ setLiveSync(){
                 console.error("PULL", error)
                 button && this.show("PULL Error: " + error)
                 // this.saveStateError(true)
-                this.prevData.error = true
+                // this.prevData.error = true
+                this.setError(true)
             } finally{
                 this.status = ""
                 this.setStatus("");
@@ -608,7 +619,7 @@ setLiveSync(){
     }
     }
 
-    async fullSync(button = true){
+    async fullSync(button =true, check =true){
         if (this.prevData.error){ 
             const action = "fullSync"
             if (this.force !== action){
@@ -627,12 +638,14 @@ setLiveSync(){
                 return
             }
             
-            this.setStatus("↕️");
+            this.setStatus("⏳");
         try {
             if (!this.prevData.error){
             if (this.prevData && this.prevData.files && Object.keys(this.prevData.files).length > 0){
-            await this.check(false)
-
+            
+            if (check){
+                await this.check(false)
+            }
             
             
             if(this.fileTreesEmpty(button)){ return }
@@ -641,6 +654,7 @@ setLiveSync(){
             let noError = true;
             // await Promise.all([this.pull(false), this.push(false)]) // !!! not usable with this.status set !!!
                 try {
+                    this.setStatus("⬇️")
             // await this.pull(false)
             await Promise.all([
                 this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added,  this.baseWebdav),
@@ -655,6 +669,7 @@ setLiveSync(){
             }
 
             try{
+                this.setStatus("⬆️")
             // await this.push(false);
             await Promise.all([
                 this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added,  this.baseWebdav),
@@ -671,7 +686,8 @@ setLiveSync(){
             // await this.check(false)
 
         if (noError){ 
-            this.prevData.error = false;
+            // this.prevData.error = false;
+            this.setError(false)
             this.force = "save"
             await this.saveState()
            }
@@ -690,7 +706,8 @@ setLiveSync(){
             console.error('fullSync Error:', error, this.prevData);
             // console.log("fullSync Error:",this.prevData)
             // this.saveStateError(true)
-            this.prevData.error = true
+            // this.prevData.error = true
+            this.setError(true)
             this.show("Sync Error: "+error)
         } finally {
             this.setStatus("");
@@ -732,10 +749,10 @@ setLiveSync(){
         return false
     }
 
-    async saveStateError(error: boolean){
+    async setError(error: boolean){
         this.prevData.error = error
         this.setStatus("")
-        app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
+        this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
     }
 
     // default true in order for except to be updated
@@ -787,7 +804,8 @@ setLiveSync(){
                 console.log("Error occurred while saving State. ", error)
                 console.error("SAVESTATE", error)
                 // this.saveStateError(true)
-                this.prevData.error  = true
+                // this.prevData.error  = true
+                this.setError(true)
                 return error
                 
             } finally {
@@ -842,6 +860,8 @@ async displayModal(){
     // console.log(this.fileTrees)
   new FileTreeModal(this.app, this).open();
 }
+
+
 
 // eslint-disable-next-line @typescript-eslint/no-inferrable-types
 show(message: string = "Alert!", duration?: number){
