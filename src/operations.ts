@@ -191,7 +191,7 @@ downloadFiles = async (webdavClient: WebDAVClient, filesMap: object, remoteBaseP
 
           console.log("Trying to create: ", filePath)//, " Len: ", fileData.length);
           await app.vault.adapter.writeBinary(filePath, fileData);
-
+          this.plugin.processed()
           // console.log(`Downloaded: ${remotePath} to ${localFilePath}`);
           console.log(`Downloaded: ${remotePath}`);
         } catch (error) {
@@ -245,7 +245,7 @@ uploadFiles = async (webDavClient: WebDAVClient, fileChecksums: object | undefin
 
       // Upload the file to WebDAV
       await webDavClient.putFileContents(remoteFilePath, fileContent);
-
+      this.plugin.processed()
       console.log(`Uploaded: ${localFilePath} to ${remoteFilePath}`);
       } catch (error){
         console.error("uploadFiles putFileContents Error: ",error, localFilePath)
@@ -304,6 +304,7 @@ deleteFilesWebdav = async(client: WebDAVClient, basePath: string ,fileTree: obje
         try{
           // Delete the item (file or directory)
           await client.deleteFile(join(basePath,file));
+          this.plugin.processed()
           console.log(`Deleted: ${file}`);
             }catch(error){
               console.error("--- ERROR Deleting - retrying ",file)
@@ -345,7 +346,9 @@ deleteFilesLocal = async(fileTree: object | undefined) => {
       // if (file.endsWith("/")){
       //   app.vault.adapter.trashSystem(file).then(()=>{console.log("deleted ",file)})
       // } else {
-      app.vault.adapter.trashSystem(file).then(()=>{console.log("deleted ",file)})
+      await app.vault.adapter.trashSystem(file)
+      console.log("deleted ",file)
+      this.plugin.processed()
       // }
     } catch { 
       console.error("deletion error",file)

@@ -29,6 +29,8 @@ export default class Cloudr extends Plugin {
     operations: Operations;
 
     statusBar: HTMLElement;
+    statusBar1: HTMLElement;
+    statusBar2: HTMLElement;
     webdavPath: string;
     showModal: boolean;
     excluded: object;
@@ -55,9 +57,13 @@ export default class Cloudr extends Plugin {
     pause: boolean;
     force: string;
     mobile: boolean;
+    localFiles: object;
+    webdavFiles: object;
 
+    loadingTotal: number;
+    loadingProcessed: number;
 
-
+    // showLoading: boolean;
 
     async onload() {
         await this.loadSettings();
@@ -128,13 +134,31 @@ export default class Cloudr extends Plugin {
         // this.statusBar = statusBar.createEl(
         //     "div",{ text: 'WEBDAV', cls: 'status-bar-item mod-clickable' }
         // );
-        this.statusBar.style.width = "30px"
+        
+        // // Create the first div
+        // this.statusBar1 = this.statusBar.createDiv();
+        // this.statusBar1.setText('First Div');
+        // this.statusBar1.style.marginRight = '10px'; // Adjust the margin as needed
+
+        // // Create the second div
+        // this.statusBar2 = this.statusBar.createDiv();
+        this.statusBar2 = this.addStatusBarItem();
+        this.statusBar2.setText('');
+
+        this.loadingTotal = -1;
+
+
+        // Optional: Apply additional styling if needed
+        this.statusBar.style.display = 'flex'; // Make the status bar a flex container
+
+
+        this.statusBar.style.width = "25px"
         this.statusBar.style.color = "green"
 
         this.statusBar.classList.add("status-bar-item")
         this.statusBar.classList.add("mod-clickable")
         
-        this.statusBar.setText('OFF');
+        // this.statusBar.setText('OFF');
         this.statusBar.addEventListener('click', () => {
             if (this.app.lastEvent && this.app.lastEvent.ctrlKey){
                 console.log("TTTTTTTTTTTTTTTTT")
@@ -145,6 +169,7 @@ export default class Cloudr extends Plugin {
             
             
         });
+
 
 
         this.addCommand({
@@ -503,6 +528,7 @@ setLiveSync(){
             //     return
             // } 
         }
+        this.calcTotal(this.fileTrees.webdavFiles.added, this.fileTrees.webdavFiles.modified, this.fileTrees.webdavFiles.deleted, this.fileTrees.webdavFiles.except)
         button && this.show("Pulling ...")
             
             if (inverted === false){    
@@ -520,10 +546,10 @@ setLiveSync(){
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except,  this.baseWebdav)
                 ]);
             }
-
+                this.finished()
                 button && this.show("Pulling completed - checking again")
                 this.force = "save"
-                await this.saveState(false)
+                await this.saveState(true)
                 button && this.show("Done")
             } catch (error){
                 console.error("PULL", error)
@@ -563,7 +589,8 @@ setLiveSync(){
             console.log("NO FILETREES ")
             await this.check()
         }
-        
+        this.calcTotal(this.fileTrees.localFiles.added, this.fileTrees.localFiles.modified, this.fileTrees.localFiles.deleted, this.fileTrees.localFiles.except)
+            // this.fileTrees.webdavFiles.deleted, this.fileTrees.localFiles.modified, this.fileTrees.webdavFiles.added, this.fileTrees.localFiles.except)
         this.setStatus("⬆️");
 
         try{
@@ -599,7 +626,7 @@ setLiveSync(){
             ])
         }
             
-            
+            this.finished()
             button && this.show("Pushing completed - saving current state ...")
             this.force = "save"
             await this.saveState(false)
@@ -649,6 +676,11 @@ setLiveSync(){
             
             
             if(this.fileTreesEmpty(button)){ return }
+
+
+            this.calcTotal(this.fileTrees.localFiles.added, this.fileTrees.localFiles.modified, this.fileTrees.localFiles.deleted ,
+                this.fileTrees.webdavFiles.deleted, this.fileTrees.localFiles.modified, this.fileTrees.webdavFiles.added)
+
             button && this.show("Synchronizing ...")
 
             let noError = true;
@@ -684,7 +716,7 @@ setLiveSync(){
         }
 
             // await this.check(false)
-
+        this.finished()
         if (noError){ 
             // this.prevData.error = false;
             this.setError(false)
@@ -816,7 +848,35 @@ setLiveSync(){
         }
     }
 
-    async setStatus(status: string){
+    async initRemote(){
+        // 
+        await this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.webdavFiles)
+        await this.operations.uploadFiles(this.webdavClient, this.localFiles, this.baseWebdav)
+        
+        
+
+    }
+
+    calcTotal(...rest: Record<string, any>[]){
+        console.log("REST: ",rest)
+        this.loadingProcessed = 0;
+        let total = 0
+        for (const i of rest){
+            total += Object.keys(i).length
+        }
+        this.loadingTotal = total;
+        this.statusBar2.setText(" 0/"+this.loadingTotal)
+        return total
+    }
+
+    async finished(){
+        
+        await sleep(2000)
+        this.statusBar2.setText("")
+        
+    }
+
+    async setStatus(status: string, text?: string){
         this.status = status;
         if (status === ""){
             if (this.prevData.error){
@@ -831,6 +891,14 @@ setLiveSync(){
         this.statusBar.style.color = "var(--status-bar-text-color)"
     }
 }
+
+async processed(){
+
+    this.loadingProcessed++;
+    console.log((this.loadingProcessed).toString()+"/"+this.loadingTotal)
+    this.statusBar2.setText((this.loadingProcessed).toString()+"/"+this.loadingTotal)
+}
+
 
 async setForce(action: string){
     

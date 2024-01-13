@@ -308,7 +308,7 @@ generateLocalHashTree = async (exclusions={}) => {
     this.localFiles[".obsidian/"]= ""
     await this.getHiddenLocalFiles(normalizePath(".obsidian"))
     
-
+    this.plugin.localFiles = this.localFiles
     return this.localFiles
 }
 
@@ -344,6 +344,7 @@ generateWebdavHashTree = async (client: WebDAVClient,rootFolder, exclusions={}) 
         const webdavHashtree = this.removeBase(refinedResult, rootFolder)
         // writeFileSync("out/output-webdav2.json", JSON.stringify(refinedResult, null, 2));
         console.log("webdav: ",webdavHashtree)
+        this.plugin.webdavFiles = webdavHashtree;
         return webdavHashtree
     } catch (error) {
         console.error("Error:", error);

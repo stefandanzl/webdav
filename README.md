@@ -23,3 +23,13 @@ Furthermore, it is required to set CORS Allow Origin Header to "*", which may no
 #### Auto Sync
 #### Auto Sync fixed Interval
 #### Enable Ribbons
+
+
+
+####CORS
+
+```
+add_header 'Access-Control-Allow-Origin' "*" always;
+add_header 'Access-Control-Allow-Headers' 'Accept,Authorization,Cache-Control,Content-Type,DNT,If-Modified-Since,Keep-Alive,Origin,User-Agent,X-Requested-With,Depth' always;
+add_header 'Access-Control-Allow-Methods' 'GET,POST,PUT,PATCH,DELETE,OPTIONS,PROPFIND,PROPPATCH,MKCOL,COPY,MOVE' always;
+```
