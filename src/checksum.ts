@@ -99,6 +99,10 @@ isExcluded(filePath){//, exclusions: { extensions?: string[], directories?: stri
     // const { extensions = [], directories = [], markers = [] } = exclusions;
     const { extensions = [], directories = [], markers = [] } = this.plugin.settings.exclusions
 
+    if (this.plugin.settings.exclusionsOverride){
+        return false
+    }
+
     const folders = filePath.split('/');
     if(!filePath.endsWith("/")){
         folders.pop();

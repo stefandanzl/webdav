@@ -63,6 +63,7 @@ export default class Cloudr extends Plugin {
     loadingTotal: number;
     loadingProcessed: number;
 
+    checkTime: number;
     // showLoading: boolean;
 
     async onload() {
@@ -84,6 +85,7 @@ export default class Cloudr extends Plugin {
         //     // console.log("Base local: ", this.baseLocal)
 
         // } else { console.log("ERROR Localpath") }
+        this.settings.exclusionsOverride = false;
 
         this.setBaseWebdav()
 
@@ -454,6 +456,8 @@ setLiveSync(){
             console.log("GAAAAAAAAAA")
         
             try {
+            this.checkTime = Date.now()
+            
             const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
             const localPromise = this.checksum.generateLocalHashTree(this.settings.exclusions);
 
@@ -670,7 +674,9 @@ setLiveSync(){
             if (!this.prevData.error){
             if (this.prevData && this.prevData.files && Object.keys(this.prevData.files).length > 0){
             
-            if (check){
+            const lastChecked = Date.now() - this.checkTime
+            
+            if (check || lastChecked > 1*60*1000){
                 await this.check(false)
             }
             

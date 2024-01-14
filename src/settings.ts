@@ -13,6 +13,7 @@ export interface CloudrSettings {
     webdavPath: string,
     overrideVault: string, 
     exclusions: {directories: string[], extensions: string[], markers: string[]},
+    exclusionsOverride: boolean,
     pullStart: boolean,
 
     liveSync: boolean,
@@ -37,6 +38,7 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
         extensions: [".exe"], 
         markers: ["prevdata.json"],
     },
+    exclusionsOverride: false,
 
     pullStart: false,
     liveSync: false,
@@ -290,6 +292,23 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
+
+            new Setting(containerEl)
+            .setName("Override disable ignore")
+            .setDesc("Enable this setting to sync ALL files, even excluded ones - useful for initial PULL or to replicate local state on other devices with PUSH")
+            .addToggle((toggle) =>
+                toggle
+                .setValue(this.plugin.settings.exclusionsOverride)
+                .onChange(async (value) => {
+                    this.plugin.settings.exclusionsOverride = value;
+                    // await this.plugin.saveSettings();  DON'T SAVE THAT
+                })
+            );
+
+
+
+
+
     }
 }
 
