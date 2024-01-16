@@ -546,6 +546,7 @@ setLiveSync(){
                 await Promise.all([
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.localFiles.deleted,  this.baseWebdav),
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified,  this.baseWebdav),
+                    this.operations.downloadFiles(this.webdavClient, this.fileTrees.localFiles.modified,  this.baseWebdav),
                     this.operations.deleteFilesLocal(this.fileTrees.localFiles.added),
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except,  this.baseWebdav)
                 ]);
@@ -593,7 +594,13 @@ setLiveSync(){
             console.log("NO FILETREES ")
             await this.check()
         }
-        this.calcTotal(this.fileTrees.localFiles.added, this.fileTrees.localFiles.modified, this.fileTrees.localFiles.deleted, this.fileTrees.localFiles.except)
+        this.calcTotal(
+            this.fileTrees.localFiles.added, 
+            this.fileTrees.localFiles.modified, 
+            this.fileTrees.localFiles.deleted, 
+            this.fileTrees.localFiles.except,  
+            this.fileTrees.webdavFiles.modified
+            );
             // this.fileTrees.webdavFiles.deleted, this.fileTrees.localFiles.modified, this.fileTrees.webdavFiles.added, this.fileTrees.localFiles.except)
         this.setStatus("⬆️");
 
@@ -625,6 +632,7 @@ setLiveSync(){
             await Promise.all([
                 this.operations.uploadFiles(this.webdavClient, this.fileTrees.webdavFiles.deleted,  this.baseWebdav),
                 this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified,  this.baseWebdav),
+                this.operations.uploadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified,  this.baseWebdav),
                 this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.webdavFiles.added),
                 this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except,  this.baseWebdav),
             ])
