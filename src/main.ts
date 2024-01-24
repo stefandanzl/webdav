@@ -63,6 +63,7 @@ export default class Cloudr extends Plugin {
     loadingTotal: number;
     loadingProcessed: number;
 
+    // checkHidden: boolean;
     checkTime: number;
     // showLoading: boolean;
 
@@ -77,7 +78,10 @@ export default class Cloudr extends Plugin {
         this.operations = new Operations(this)
 
         this.mobile = Platform.isMobileApp
-        
+
+        // // this.checkHidden = !this.mobile; 
+        // this.checkHidden = true;
+        // console.log("MOBILE: ",this.mobile,"\ncheckHidden",this.checkHidden)
 
         // const adapter = this.app.vault.adapter;
         // if (adapter instanceof FileSystemAdapter) {
@@ -398,6 +402,7 @@ setLiveSync(){
     async test(button = true) {
         try {
             this.setStatus("🧪");
+            this.show("🧪 Testing ...")
     
             const directoryContents = await this.webdavClient.getDirectoryContents(this.settings.webdavPath);
     
@@ -437,6 +442,7 @@ setLiveSync(){
     async check(button = true) {
         if (!button || !this.status){ //disable status check if button = false for fullsync etc.
             this.setStatus("🔎");
+            this.show("🔎 Checking ...")
             
             try {
             const dir = await this.webdavClient.getDirectoryContents(this.settings.webdavPath)
@@ -459,13 +465,15 @@ setLiveSync(){
             this.checkTime = Date.now()
             
             const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-            const localPromise = this.checksum.generateLocalHashTree(this.settings.exclusions);
+            
+            
+            const localPromise = this.checksum.generateLocalHashTree();
 
             // Use Promise.all to execute both promises simultaneously
             const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
 
             console.log("WEBDAV:",webdavFiles)
-            console.log("LOCAL",localFiles)
+            console.log("LOCAL",JSON.stringify(localFiles,null, 2))
             ///////// Check if valid response
 
             const comparedFileTrees = await this.compare.compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
@@ -474,6 +482,7 @@ setLiveSync(){
  
 
             button && (this.fileTreesEmpty() ? null : this.show("Finished checking files"))
+            // if (this.mobile){this.checkHidden = true;}
             return true
         } catch (error) {
             console.log("CHECK ERROR: ", error)
@@ -821,7 +830,7 @@ setLiveSync(){
                 
             if (check){
                 const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-                const localPromise = this.checksum.generateLocalHashTree(this.settings.exclusions);
+                const localPromise = this.checksum.generateLocalHashTree();
 
                 // Use Promise.all to execute both promises simultaneously
                 const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
@@ -830,7 +839,7 @@ setLiveSync(){
                 this.prevData.files = localFiles;
                 console.log(localFiles)
             } else {
-                this.prevData.files = await this.checksum.generateLocalHashTree(this.settings.exclusions);
+                this.prevData.files = await this.checksum.generateLocalHashTree();
             }
 
             console.log("SwagggG",this.prevData.files)

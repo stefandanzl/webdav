@@ -346,7 +346,11 @@ deleteFilesLocal = async(fileTree: object | undefined) => {
       // if (file.endsWith("/")){
       //   app.vault.adapter.trashSystem(file).then(()=>{console.log("deleted ",file)})
       // } else {
-      await app.vault.adapter.trashSystem(file)
+      if (this.plugin.mobile){
+        await app.vault.adapter.trashLocal(file)
+      } else {
+        await app.vault.adapter.trashSystem(file)
+      }
       console.log("deleted ",file)
       this.plugin.processed()
       // }

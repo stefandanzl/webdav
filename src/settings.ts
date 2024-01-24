@@ -22,6 +22,7 @@ export interface CloudrSettings {
     modifySyncInterval: number,
     modifySync: boolean,
     enableRibbons: boolean,
+    skipHidden: boolean,
 
 }
 
@@ -45,6 +46,7 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     autoSync: false,
     autoSyncInterval: 10,
     enableRibbons: true,
+    skipHidden: false,
 
 }
 
@@ -305,7 +307,17 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 })
             );
 
-
+            new Setting(containerEl)
+            .setName("Skip .obsidian sync")
+            .setDesc("This function is recommended especially on mobile, enable for quicker file checking, disable to sync plugins and more")
+            .addToggle((toggle) =>
+                toggle
+                .setValue(this.plugin.settings.skipHidden)
+                .onChange(async (value) => {
+                    this.plugin.settings.skipHidden = value;
+                    await this.plugin.saveSettings(); 
+                })
+            );
 
 
 

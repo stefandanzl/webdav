@@ -99,6 +99,12 @@ isExcluded(filePath){//, exclusions: { extensions?: string[], directories?: stri
     // const { extensions = [], directories = [], markers = [] } = exclusions;
     const { extensions = [], directories = [], markers = [] } = this.plugin.settings.exclusions
 
+    const directoriesMod = [...directories] // necessary because otherwise original array will be manipulated!
+
+    if (this.plugin.settings.skipHidden){
+        directoriesMod.push(".obsidian")
+    }
+
     if (this.plugin.settings.exclusionsOverride){
         return false
     }
@@ -107,7 +113,7 @@ isExcluded(filePath){//, exclusions: { extensions?: string[], directories?: stri
     if(!filePath.endsWith("/")){
         folders.pop();
     }
-    if(folders.some(folder => directories.includes(folder))){
+    if(folders.some(folder => directoriesMod.includes(folder))){
         return true
     }
 
@@ -116,14 +122,6 @@ isExcluded(filePath){//, exclusions: { extensions?: string[], directories?: stri
     if (extensions.includes(extension)) {
         return true;
     }
-
-    // // Check directories
-    // if (directories.some(dir => filePath.includes(dir))) {
-    //     return true;
-    // }
-
-    
-
 
     // Check markers
     if (markers.some(marker => filePath.includes(marker))) {
@@ -267,7 +265,7 @@ async getHiddenLocalFiles(path: string, concurrency= 15) {
 
 
 
-generateLocalHashTree = async (exclusions={}) => {
+generateLocalHashTree = async () => {
     // const rootFolder = self.basePath;
     // const checksumTable = {};
     this.localFiles = {}
@@ -309,9 +307,10 @@ generateLocalHashTree = async (exclusions={}) => {
     }
         
     }));
+    if (!this.plugin.settings.skipHidden){
     this.localFiles[".obsidian/"]= ""
     await this.getHiddenLocalFiles(normalizePath(".obsidian"))
-    
+    }
     this.plugin.localFiles = this.localFiles
     return this.localFiles
 }
