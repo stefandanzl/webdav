@@ -83,6 +83,8 @@ export default class Cloudr extends Plugin {
 
         this.mobile = Platform.isMobileApp
 
+        this.connectionError = false;
+
         // // this.checkHidden = !this.mobile; 
         // this.checkHidden = true;
         // console.log("MOBILE: ",this.mobile,"\ncheckHidden",this.checkHidden)
@@ -343,13 +345,23 @@ export default class Cloudr extends Plugin {
 async liveSyncCallback(abstractFile: TAbstractFile){
     console.log("liveSync outer")
     if (!this.status && abstractFile instanceof TFile){
-    this.status = "livesync"
-        if (this.connectionError){
-            // @ts-ignore
-            if (this.lastLiveSync - new Date() < 20000){
+    
+        if (this.connectionError === false){
+            // console.log(Date.now() - this.lastLiveSync)
+            if (Date.now() - this.lastLiveSync < 5000){
+                
                 return;
-            }
+            } 
+        } else {
+            console.log(Date.now() - this.lastLiveSync)
+            if (Date.now() - this.lastLiveSync < 20000){
+                
+                return;
+            } 
         }
+
+        this.lastLiveSync = Date.now()
+        this.status = "livesync"
     
         console.log("liveSync Inner")
         try {
@@ -382,7 +394,7 @@ async liveSyncCallback(abstractFile: TAbstractFile){
             this.prevData.files[filePath] = hash;
             // await sleep(1000)
 
-            this.status = ""
+            // this.status = ""
             this.setStatus("")
             this.connectionError = false;
 
@@ -390,14 +402,20 @@ async liveSyncCallback(abstractFile: TAbstractFile){
         catch (error) {
             
             
-            if (!this.connectionError){
-            console.error("LiveSync Error: ",error);
+            // if (!this.connectionError){
+            // console.error("LiveSync Error: ",error);
+            console.log("LiveSync Connectivity ERROR!")
             this.show("LiveSync Error");
             this.connectionError = true;
-            }
+            this.lastLiveSync = Date.now()
+            // this.statusBar.setText("📴");
+
+        // }
             
-            this.status = "";
-            this.setStatus("📴");
+            
+
+            // this.status = "";
+            this.setStatus("");
         } 
         // finally {
             
@@ -924,14 +942,23 @@ setLiveSync(){
 
     async setStatus(status: string, text?: string){
         this.status = status;
+        
+        if (this.connectionError){
+            this.statusBar.setText("📴");
+            this.statusBar.style.color = "red"
+            return
+        }
         if (status === ""){
             if (this.prevData.error){
                 this.statusBar.setText("❌");
                 this.statusBar.style.color = "red"
+                return
             } else {
                 this.statusBar.setText("✔️");
                 this.statusBar.style.color = "var(--status-bar-text-color)"
+                return
             }
+
         } else {
         this.statusBar.setText(status);
         this.statusBar.style.color = "var(--status-bar-text-color)"
