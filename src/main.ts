@@ -53,6 +53,10 @@ export default class Cloudr extends Plugin {
     status: string;
     message: string;
     lastSync: number;
+
+    lastLiveSync: number;
+    connectionError: boolean;
+    
     notice: Notice;
     pause: boolean;
     force: string;
@@ -340,6 +344,12 @@ async liveSyncCallback(abstractFile: TAbstractFile){
     console.log("liveSync outer")
     if (!this.status && abstractFile instanceof TFile){
     this.status = "livesync"
+        if (this.connectionError){
+            // @ts-ignore
+            if (this.lastLiveSync - new Date() < 20000){
+                return;
+            }
+        }
     
         console.log("liveSync Inner")
         try {
@@ -372,15 +382,28 @@ async liveSyncCallback(abstractFile: TAbstractFile){
             this.prevData.files[filePath] = hash;
             // await sleep(1000)
 
+            this.status = ""
+            this.setStatus("")
+            this.connectionError = false;
+
         }
         catch (error) {
-            console.error("LiveSync Error: ",error)
-            this.show("LiveSync Error")
-        } finally {
             
-        this.status = ""
-        this.setStatus("")
-        }
+            
+            if (!this.connectionError){
+            console.error("LiveSync Error: ",error);
+            this.show("LiveSync Error");
+            this.connectionError = true;
+            }
+            
+            this.status = "";
+            this.setStatus("📴");
+        } 
+        // finally {
+            
+        // this.status = ""
+        // this.setStatus("")
+        // }
     }
 }
 
