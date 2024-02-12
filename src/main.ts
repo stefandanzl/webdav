@@ -601,8 +601,9 @@ setLiveSync(){
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except,  this.baseWebdav)
                 ]);
             }
-                this.finished()
+                // this.finished()
                 button && this.show("Pulling completed - checking again")
+                await this.check(true)
                 this.force = "save"
                 await this.saveState(true)
                 button && this.show("Done")
@@ -688,10 +689,11 @@ setLiveSync(){
             ])
         }
             
-            this.finished()
+            // this.finished()
             button && this.show("Pushing completed - saving current state ...")
+            await this.check(true)
             this.force = "save"
-            await this.saveState(false)
+            await this.saveState(true)
             button && this.show("Done")
         } catch (error){
             // button && this.show("PUSH Error: " + error)
