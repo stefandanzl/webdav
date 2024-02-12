@@ -182,17 +182,22 @@ export class CloudrSettingsTab extends PluginSettingTab {
 
             new Setting(containerEl)
             .setName("Excluded filename markers")
-            .setDesc("Enter markers separated by semicolons and WITHOUT spaces")
-            .addText((text) =>
+            .setDesc("Enter markers in separate lines")
+            .addTextArea((text) =>
                 text
-                .setPlaceholder("_secret_;°cache~;_archive_;folder1/folder2")
-                .setValue(this.plugin.settings.exclusions.markers.join(';'))
+                .setPlaceholder("_secret_\n°cache~\n_archive_\nfolder1/folder2")
+                .setValue(this.plugin.settings.exclusions.markers.join('\n'))
                 .onChange(async (value) => {
-                    // value = value.replace(/ /g, "")
-                    this.plugin.settings.exclusions.markers = value.split(';')
-
+                    value = value.replace(/\r/g, '').replace(/\\/g, '/');
+                    this.plugin.settings.exclusions.markers = value.split('\n')
                     await this.plugin.saveSettings();
                 })
+                // .onChange(async (value) => {
+                //     // value = value.replace(/ /g, "")
+                //     this.plugin.settings.exclusions.markers = value.split(';')
+
+                //     await this.plugin.saveSettings();
+                // })
             );
 
         new Setting(containerEl)
