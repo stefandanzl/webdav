@@ -923,6 +923,7 @@ setLiveSync(){
 
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     calcTotal(...rest: Record<string, any>[]){
         console.log("REST: ",rest)
         this.loadingProcessed = 0;
