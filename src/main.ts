@@ -534,7 +534,7 @@ async openPullCallback(file: TFile | null){
             // await this.webdavClient.putFileContents(remoteFilePath, data);
             
             // const res = await this.webdavClient.stat(remoteFilePath, {details: true})
-            const remoteContent = await this.webdavClient.getFileContents(remoteFilePath, { format: "text" });
+            const remoteContent = await this.webdavClient.getFileContents(remoteFilePath, { format: "text" }) as string;
             if (remoteContent){    
             // console.log(res);
             //     //@ts-ignore
@@ -551,6 +551,8 @@ async openPullCallback(file: TFile | null){
                 if (remoteChksm !== prevHash && prevHash === localHash){
                     console.log("!\n!\n!! Remote UPDATE DETECTED!!\n!")
 
+                    this.app.vault.modify(file, remoteContent)
+                    
 
                 }
 

@@ -25,7 +25,10 @@ configWebdav = (url: string, username: string, password: string): WebDAVClient =
     throw new Error("No userdata");
      }
 
-  const client = createClient(url,{ username, password });
+  const client = createClient(url,{ username, password, 
+    headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+  } });
 return client
 }
 
