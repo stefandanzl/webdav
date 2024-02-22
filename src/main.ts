@@ -49,6 +49,7 @@ export default class Cloudr extends Plugin {
         files: object,
         except?: object,
     };
+    // prevDataSaveTimeoutId: NodeJS.Timeout | null;
     intervalId: number;
     status: string;
     message: string;
@@ -419,6 +420,10 @@ async liveSyncCallback(abstractFile: TAbstractFile){
             // @ts-ignore
             this.prevData.files[filePath] = hash;
             // await sleep(1000)
+            // this.prevDataSaveTimeoutId = setTimeout(() => {
+            //     console.log('Timeout triggered');
+            //   }, 15_000);
+            this.savePrevData()
 
             // this.status = ""
             this.setStatus("")
@@ -504,39 +509,35 @@ async openPullCallback(file: TFile | null){
             // const hash = createHash('sha1').update(data).digest('hex');
             // const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
             // const hash = sha1.update(data).hex();
-            const hash = this.checksum.sha1(data);
+            const localHash = this.checksum.sha1(data);
             
             //@ts-ignore
             const prevHash = this.prevData.files[filePath];
 
+            console.log(this.prevData.files)
             
 
             const remoteFilePath = join(this.baseWebdav, filePath);
             // await this.webdavClient.putFileContents(remoteFilePath, data);
-            try{
+            
             // const res = await this.webdavClient.stat(remoteFilePath, {details: true})
             const remoteContent = await this.webdavClient.getFileContents(remoteFilePath, { format: "text" });
             if (remoteContent){    
             // console.log(res);
             //     //@ts-ignore
             //     const remoteChksm = res.data.props?.checksum
-                console.log(remoteContent)
+                // console.log(remoteContent)
             const remoteChksm = this.checksum.sha1(remoteContent)
 
-            console.log("Local  ",hash)
+            console.log("Local  ",localHash)
             console.log("Prev   ",prevHash)
             console.log("Remote ",remoteChksm)
 
                 // console.log(remoteChksm, " AND ",hash)
 
-                if (hash == remoteChksm){
-                    console.log("\nEQUAL!!")
-                } else {
-                    console.log("\nNot equal!")
+                if (remoteChksm !== prevHash && prevHash === localHash){
+                    console.log("!\n!\n!! Remote UPDATE DETECTED!!\n!")
 
-
-
-                    // this.prevData.files[filePath] = remoteChks;
 
                 }
 
@@ -545,9 +546,7 @@ async openPullCallback(file: TFile | null){
             } else {
                 console.log("error, nothing responded")
             }
-        } catch (error){
-            console.error(error)
-        }
+       
                 // const after = Date.now()
             
             // console.log("\nDuration: ",after - before)
@@ -563,7 +562,11 @@ async openPullCallback(file: TFile | null){
 
         }
         catch (error) {
-            
+            if (error instanceof Error && error.message.includes('404')) {
+                // Handle 404 Not Found error
+                console.error('File not found:', error.message);
+                // Additional error handling or UI updates for 404 error
+              }
             
             // if (!this.connectionError){
             // console.error("LiveSync Error: ",error);
@@ -1079,6 +1082,16 @@ setOpenPull(){    // set
             }
         } else {
             console.log("Action currently active: ", this.status)
+        }
+    }
+
+    async savePrevData(){
+        try{
+            await this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
+                console.log("saving prevData successful!")
+                // this.prevDataSaveTimeoutId = null;
+        } catch(error){
+            console.error("prevData   ", error)
         }
     }
 
