@@ -55,6 +55,7 @@ export default class Cloudr extends Plugin {
     lastSync: number;
 
     lastLiveSync: number;
+    LiveSyncTimeoutId: NodeJS.Timeout | null;
     connectionError: boolean;
     
     notice: Notice;
@@ -308,6 +309,8 @@ export default class Cloudr extends Plugin {
             this.setAutoSync()
         } 
  
+        this.setOpenPull()
+        
     }
 
     async setClient(){
@@ -349,6 +352,22 @@ async liveSyncCallback(abstractFile: TAbstractFile){
         if (this.connectionError === false){
             // console.log(Date.now() - this.lastLiveSync)
             if (Date.now() - this.lastLiveSync < 5000){
+                // We want some time between each Sync Process
+
+                if (this.LiveSyncTimeoutId){
+                    clearTimeout(this.LiveSyncTimeoutId);
+                    this.LiveSyncTimeoutId = null;
+                }
+                
+
+
+                // Schedule a 10-second delay
+                this.LiveSyncTimeoutId = setTimeout(() => {
+                    console.log('10 seconds have passed');
+                    this.liveSyncCallback(abstractFile)
+                }, 10000);
+
+
                 
                 return;
             } 
@@ -364,6 +383,13 @@ async liveSyncCallback(abstractFile: TAbstractFile){
         this.status = "livesync"
     
         console.log("liveSync Inner")
+
+        if (this.LiveSyncTimeoutId){
+            clearTimeout(this.LiveSyncTimeoutId);
+            this.LiveSyncTimeoutId = null;
+        }
+
+
         try {
             const file: TFile = abstractFile;
 
@@ -425,13 +451,155 @@ async liveSyncCallback(abstractFile: TAbstractFile){
     }
 }
 
-setLiveSync(){
+setLiveSync(){   // rather setLivePush
     if (this.settings.liveSync){
         this.registerEvent(this.app.vault.on("modify",(file)=>{this.liveSyncCallback(file)}))
     } else {
         this.app.vault.off("modify",(file)=>{this.liveSyncCallback(file)})
         
     }
+}
+
+
+
+async openPullCallback(file: TFile | null){
+    console.log("openPull outer")
+    if (!this.status && file instanceof TFile){
+    
+        // if (this.connectionError === false){
+        //     // console.log(Date.now() - this.lastLiveSync)
+        //     if (Date.now() - this.lastLiveSync < 5000){
+                
+        //         return;
+        //     } 
+        // } else {
+        //     console.log(Date.now() - this.lastLiveSync)
+        //     if (Date.now() - this.lastLiveSync < 20000){
+                
+        //         return;
+        //     } 
+        // }
+
+        // this.lastLiveSync = Date.now()
+        this.status = "openPull"
+    
+        console.log("openPull Inner")
+        try {
+            // const file: TFile = abstractFile;
+
+            const filePath: string = file.path
+
+            if(
+                (this.fileTrees && this.fileTrees.localFiles && this.fileTrees.localFiles.except && this.fileTrees.localFiles.except.hasOwnProperty(filePath)) || 
+            (this.prevData.except && this.prevData.except.hasOwnProperty(filePath))
+            ){ 
+                console.log("File is an exception!")
+                this.show("File "+filePath+" is an exception file!")
+                return 
+            } 
+            this.setStatus("🔄")
+            
+            console.log(filePath)
+            const data = await this.app.vault.read(file)
+            // const hash = createHash('sha1').update(data).digest('hex');
+            // const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
+            // const hash = sha1.update(data).hex();
+            const hash = this.checksum.sha1(data);
+            
+            //@ts-ignore
+            const prevHash = this.prevData.files[filePath];
+
+            
+
+            const remoteFilePath = join(this.baseWebdav, filePath);
+            // await this.webdavClient.putFileContents(remoteFilePath, data);
+            try{
+            // const res = await this.webdavClient.stat(remoteFilePath, {details: true})
+            const remoteContent = await this.webdavClient.getFileContents(remoteFilePath, { format: "text" });
+            if (remoteContent){    
+            // console.log(res);
+            //     //@ts-ignore
+            //     const remoteChksm = res.data.props?.checksum
+                console.log(remoteContent)
+            const remoteChksm = this.checksum.sha1(remoteContent)
+
+            console.log("Local  ",hash)
+            console.log("Prev   ",prevHash)
+            console.log("Remote ",remoteChksm)
+
+                // console.log(remoteChksm, " AND ",hash)
+
+                if (hash == remoteChksm){
+                    console.log("\nEQUAL!!")
+                } else {
+                    console.log("\nNot equal!")
+
+
+
+                    // this.prevData.files[filePath] = remoteChks;
+
+                }
+
+
+
+            } else {
+                console.log("error, nothing responded")
+            }
+        } catch (error){
+            console.error(error)
+        }
+                // const after = Date.now()
+            
+            // console.log("\nDuration: ",after - before)
+            
+
+            // @ts-ignore
+            // this.prevData.files[filePath] = remoteChks;
+            // await sleep(1000)
+
+            // this.status = ""
+            this.setStatus("")
+            this.connectionError = false;
+
+        }
+        catch (error) {
+            
+            
+            // if (!this.connectionError){
+            // console.error("LiveSync Error: ",error);
+            console.log("OpenPull Connectivity ERROR!")
+            this.show("OpenPull Error");
+            this.connectionError = true;
+            // this.lastLiveSync = Date.now()
+            // this.statusBar.setText("📴");
+
+            this.setStatus("");
+        } 
+
+    }
+}
+
+setOpenPull(){    // set
+    // if (true  || this.settings.liveSync){
+        // this.registerEvent(this.app.workspace.on("active-leaf-change",()=>{
+        //    const file = this.app.workspace.getActiveFile()
+          
+        //     if (file){
+        //     console.log(file.path)
+        //     }
+        //     else {
+        //         console.log("NOOONE")
+        //     }
+        // }))
+        
+        this.registerEvent(this.app.workspace.on("file-open",(file)=>{ this.openPullCallback(file)
+         }
+        
+        )); //vault.on("modify",(file)=>{this.liveSyncCallback(file)}))
+    // } else {
+    //     this.app.vault.off("modify",(file)=>{this.liveSyncCallback(file)})
+        
+    // }
 }
 
     async errorWrite() {
