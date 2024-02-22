@@ -56,7 +56,8 @@ export default class Cloudr extends Plugin {
     lastSync: number;
 
     lastLiveSync: number;
-    LiveSyncTimeoutId: NodeJS.Timeout | null;
+    // LiveSyncTimeoutId: NodeJS.Timeout | null;
+    liveSyncTimeouts: Record<string, NodeJS.Timeout | null> = {};
     connectionError: boolean;
     
     notice: Notice;
@@ -346,27 +347,32 @@ export default class Cloudr extends Plugin {
     }
 }
 
+async renewLiveSyncTimeout(abstractFile: TFile){
+    const filePath: string = abstractFile.path
+    const timeoutId = this.liveSyncTimeouts[filePath]
+    if (timeoutId){
+        clearTimeout(timeoutId);
+        delete this.liveSyncTimeouts[filePath]
+    }
+    
+    // Schedule a 10-second delay
+    this.liveSyncTimeouts[filePath] = setTimeout(() => {
+        console.log('10 seconds have passed');
+        this.liveSyncCallback(abstractFile)
+    }, 10000);
+}
+
 async liveSyncCallback(abstractFile: TAbstractFile){
     console.log("liveSync outer")
-    if (!this.status && abstractFile instanceof TFile){
+    if (abstractFile instanceof TFile){
+        if (!this.status){
     
         if (this.connectionError === false){
             // console.log(Date.now() - this.lastLiveSync)
             if (Date.now() - this.lastLiveSync < 5000){
                 // We want some time between each Sync Process
 
-                if (this.LiveSyncTimeoutId){
-                    clearTimeout(this.LiveSyncTimeoutId);
-                    this.LiveSyncTimeoutId = null;
-                }
-                
-
-
-                // Schedule a 10-second delay
-                this.LiveSyncTimeoutId = setTimeout(() => {
-                    console.log('10 seconds have passed');
-                    this.liveSyncCallback(abstractFile)
-                }, 10000);
+                this.renewLiveSyncTimeout(abstractFile)
 
 
                 
@@ -385,16 +391,19 @@ async liveSyncCallback(abstractFile: TAbstractFile){
     
         console.log("liveSync Inner")
 
-        if (this.LiveSyncTimeoutId){
-            clearTimeout(this.LiveSyncTimeoutId);
-            this.LiveSyncTimeoutId = null;
-        }
+
 
 
         try {
             const file: TFile = abstractFile;
 
             const filePath: string = file.path
+
+            const timeoutId = this.liveSyncTimeouts[filePath]
+            if (timeoutId){
+                clearTimeout(timeoutId);
+                delete this.liveSyncTimeouts[filePath]
+            }
 
             if(
                 (this.fileTrees && this.fileTrees.localFiles && this.fileTrees.localFiles.except && this.fileTrees.localFiles.except.hasOwnProperty(filePath)) || 
@@ -453,6 +462,10 @@ async liveSyncCallback(abstractFile: TAbstractFile){
         // this.status = ""
         // this.setStatus("")
         // }
+    } else {
+        this.renewLiveSyncTimeout(abstractFile)
+     }
+
     }
 }
 
