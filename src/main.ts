@@ -311,7 +311,9 @@ export default class Cloudr extends Plugin {
             this.setAutoSync()
         } 
  
-        this.setOpenPull()
+        if (this.settings.openPull){
+            this.setOpenPull()
+        }
         
     }
 
@@ -535,26 +537,57 @@ async openPullCallback(file: TFile | null){
             
             // const res = await this.webdavClient.stat(remoteFilePath, {details: true})
             const remoteContent = await this.webdavClient.getFileContents(remoteFilePath, { format: "text" }) as string;
-            if (remoteContent){    
+            if (remoteContent !== null && remoteContent !== undefined){    
             // console.log(res);
             //     //@ts-ignore
             //     const remoteChksm = res.data.props?.checksum
                 // console.log(remoteContent)
-            const remoteChksm = this.checksum.sha1(remoteContent)
+            const remoteHash = this.checksum.sha1(remoteContent)
 
             console.log("Local  ",localHash)
             console.log("Prev   ",prevHash)
-            console.log("Remote ",remoteChksm)
+            console.log("Remote ",remoteHash)
 
                 // console.log(remoteChksm, " AND ",hash)
 
-                if (remoteChksm !== prevHash && prevHash === localHash){
-                    console.log("!\n!\n!! Remote UPDATE DETECTED!!\n!")
+                // if (localHash !== remoteHash ){
+                //     if (prevHash === undefined || 
+                //         (prevHash === localHash && prevHash !== undefined)){
+
+                //         }
+                // }
+            console.log(Date.now())
+            console.log(file.stat.ctime)
+
+
+                // SPECIFIC CASE FOR DAILY NOTES SCENARIO
+                if (prevHash === undefined && localHash !== remoteHash 
+                    && remoteHash !== undefined ){
+                        if(Date.now() - file.stat.ctime < 60_000){
+                    // file just was created locally but the same file has already existed remotely
+                    console.log("File was just created! ", Date.now() - file.stat.ctime)
 
                     this.app.vault.modify(file, remoteContent)
-                    
+                } else {
+                    console.log("File too old!")
+                }
 
                 }
+
+                // if (remoteHash !== prevHash && prevHash === localHash 
+                //     && prevHash !== undefined){
+                //     // Remote file was changed
+                //     console.log("!\n!\n!! Remote UPDATE DETECTED!!\n!")
+
+                //     if (Date.now() - file.stat.ctime < 60_000){
+                //         console.log("\nThis file just was created!")
+
+                //         this.app.vault.modify(file, remoteContent)
+                //     } else {
+                //         console.log("nothing done ...")
+                //     }
+
+                // }
 
 
 
@@ -579,8 +612,10 @@ async openPullCallback(file: TFile | null){
         catch (error) {
             if (error instanceof Error && error.message.includes('404')) {
                 // Handle 404 Not Found error
-                console.error('File not found:', error.message);
+                console.log('File not found:', error.message);
                 // Additional error handling or UI updates for 404 error
+              } else {
+                console.error(error)
               }
             
             // if (!this.connectionError){
@@ -598,7 +633,7 @@ async openPullCallback(file: TFile | null){
 }
 
 setOpenPull(){    // set
-    // if (true  || this.settings.liveSync){
+    if (this.settings.openPull){
         // this.registerEvent(this.app.workspace.on("active-leaf-change",()=>{
         //    const file = this.app.workspace.getActiveFile()
           
@@ -614,10 +649,10 @@ setOpenPull(){    // set
          }
         
         )); //vault.on("modify",(file)=>{this.liveSyncCallback(file)}))
-    // } else {
-    //     this.app.vault.off("modify",(file)=>{this.liveSyncCallback(file)})
+    } else {
+        this.app.workspace.off("file-open",(file)=>{this.openPullCallback(file)})
         
-    // }
+    }
 }
 
     async errorWrite() {
@@ -890,10 +925,10 @@ setOpenPull(){    // set
         }
 
 
-    } else {
-        button && this.show("Pushing not possible, currently working on '"+this.status+"'")
-        console.log("Action currently active: ", this.status)
-    }
+        } else {
+            button && this.show("Pushing not possible, currently working on '"+this.status+"'")
+            console.log("Action currently active: ", this.status)
+        }
     }
 
     async fullSync(button =true, check =true){

@@ -17,6 +17,7 @@ export interface CloudrSettings {
     pullStart: boolean,
 
     liveSync: boolean,
+    openPull: boolean,
     autoSync: boolean,
     autoSyncInterval: number,
     modifySyncInterval: number,
@@ -43,6 +44,7 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
 
     pullStart: false,
     liveSync: false,
+    openPull: false,
     autoSync: false,
     autoSyncInterval: 10,
     enableRibbons: true,
@@ -221,6 +223,19 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 .onChange(async (value) => {
                     this.plugin.settings.liveSync = value;
                     this.plugin.setLiveSync()
+                    await this.plugin.saveSettings();
+                })
+            );
+
+            new Setting(containerEl)
+            .setName("Open Pull")
+            .setDesc("Enable Pulling remote data when files are opened or revisited")
+            .addToggle((toggle) =>
+                toggle
+                .setValue(this.plugin.settings.openPull)
+                .onChange(async (value) => {
+                    this.plugin.settings.openPull = value;
+                    this.plugin.setOpenPull()
                     await this.plugin.saveSettings();
                 })
             );
