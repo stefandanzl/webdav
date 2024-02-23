@@ -2,6 +2,9 @@ import { createClient } from 'webdav';
 import { createHash } from 'crypto';
 import {createHash as uintCreateHash} from "sha1-uint8array";
 
+
+// run this file with: node --env-file=.env test/stat_remote.mjs 
+
 function sha1(data){
     const a = false
     if (a){

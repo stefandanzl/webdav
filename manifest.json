@@ -1,7 +1,7 @@
 {
 	"id": "webdav",
 	"name": "Webdav",
-	"version": "0.7.2",
+	"version": "0.8.0",
 	"minAppVersion": "1.5.0",
 	"description": "Webdav Sync for Obsidian based on checksum comparison",
 	"author": "Stefan Danzl",
