@@ -275,33 +275,9 @@ export default class Cloudr extends Plugin {
        
 
         this.setStatus("");
-        this.setClient().then(async()=>{
-        if (this.settings.pullStart && !this.prevData.error) {
-            this.setStatus("🚀");
-            try {
-                const ok = await this.test()
-            if (ok){
-                await this.check()
-                // this.pull()
-                
-               await Promise.all([
-                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added,  this.baseWebdav),
-                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified,  this.baseWebdav),
-                this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
-                    // downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
-                ]);
-                // this.saveState()
-                await this.check(false)
-                
-            }}
-            catch {
-                console.error("pullstart error")
-                this.show("PullStart error")
-            } finally {
-                this.setStatus("");
-            }
-        }
-    });
+        this.setClient()
+        
+
         
         if (this.settings.liveSync){
             this.setLiveSync()
@@ -314,7 +290,10 @@ export default class Cloudr extends Plugin {
         if (this.settings.openPull){
             this.setOpenPull()
         }
-        
+
+        if (this.settings.launchSync){
+        this.app.workspace.onLayoutReady(()=>{this.launchSyncCallback()})
+        }
     }
 
     async setClient(){
@@ -346,6 +325,29 @@ export default class Cloudr extends Plugin {
                 console.log('AUTOSYNC INTERVAL TRIGGERED');
                 this.fullSync(false)
             }, this.settings.autoSyncInterval*1000);
+    }
+}
+
+async launchSyncCallback() {
+    if (!this.prevData.error) {
+        // this.setStatus("🚀");
+        try {
+            const ok = await this.test()
+        if (ok){
+
+            await this.fullSync()
+
+            this.show("Launch Sync successful")
+
+        }}
+        catch {
+            console.error("launchSync error")
+            this.show("Launch Sync error")
+        } finally {
+            this.setStatus("");
+        }
+    } else {
+        this.show("Previous Error detected, not allowing Launch Sync")
     }
 }
 

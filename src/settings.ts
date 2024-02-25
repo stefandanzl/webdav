@@ -14,7 +14,7 @@ export interface CloudrSettings {
     overrideVault: string, 
     exclusions: {directories: string[], extensions: string[], markers: string[]},
     exclusionsOverride: boolean,
-    pullStart: boolean,
+    launchSync: boolean,
 
     liveSync: boolean,
     openPull: boolean,
@@ -42,7 +42,7 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     },
     exclusionsOverride: false,
 
-    pullStart: false,
+    launchSync: false,
     liveSync: false,
     openPull: false,
     autoSync: false,
@@ -203,13 +203,13 @@ export class CloudrSettingsTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
-            .setName("PULL Start")
-            .setDesc("Enable PULL Action on Obsidian Start")
+            .setName("Launch Sync")
+            .setDesc("Check files and sync on app start automatically")
             .addToggle((toggle) =>
                 toggle
-                .setValue(this.plugin.settings.pullStart)
+                .setValue(this.plugin.settings.launchSync)
                 .onChange(async (value) => {
-                    this.plugin.settings.pullStart = value;
+                    this.plugin.settings.launchSync = value;
                     await this.plugin.saveSettings();
                 })
             );
