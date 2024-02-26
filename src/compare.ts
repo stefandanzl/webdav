@@ -156,7 +156,7 @@ checkExistKeyBoth = (sourceObject={}, referenceObject={}) => {
 
 filterExclusions = (fileTree: object,  exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) =>{
 const { extensions = [], directories = [], markers = [] } = this.plugin.settings.exclusions
-const filtered = {}
+let filtered = {}
 const directoriesMod = [...directories] // necessary because otherwise original array will be manipulated!
 
 if (this.plugin.mobile){
@@ -171,8 +171,9 @@ if (this.plugin.mobile){
 
 
 if (this.plugin.settings.exclusionsOverride){
-    return false
-}
+  filtered = {...fileTree}  
+  // return false
+} else {
 
 
 for (const filePath in fileTree){
@@ -183,23 +184,24 @@ if(!filePath.endsWith("/")){
     folders.pop();
 }
 if(folders.some(folder => directoriesMod.includes(folder))){
-    return true
+    continue;
 }
 
 // Check file extensions
 const extension = extname(filePath).toLowerCase();
 if (extensions.includes(extension)) {
-    return true;
+    continue;
 }
 
 // Check markers
 if (markers.some(marker => filePath.includes(marker))) {
-    return true;
+    continue;
 }
 
 
     filtered[filePath] = fileTree[filePath]
     }
+  }
     return filtered
   }
 
