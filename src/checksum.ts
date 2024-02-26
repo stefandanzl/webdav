@@ -101,9 +101,16 @@ isExcluded(filePath){//, exclusions: { extensions?: string[], directories?: stri
 
     const directoriesMod = [...directories] // necessary because otherwise original array will be manipulated!
 
-    if (this.plugin.settings.skipHidden){
-        directoriesMod.push(".obsidian")
+    if (this.plugin.mobile){
+        if (this.plugin.settings.skipHiddenMobile){
+            directoriesMod.push(".obsidian")
+        }
+    } else {
+        if (this.plugin.settings.skipHiddenDesktop){
+            directoriesMod.push(".obsidian")
+        }
     }
+    
 
     if (this.plugin.settings.exclusionsOverride){
         return false
@@ -205,14 +212,16 @@ sha1(data){
 
 }
 
-async getHiddenLocalFiles(path: string, concurrency= 15) {
+
+// use exclude = false to disable exclusion detection
+async getHiddenLocalFiles(path: string, exclude=true, concurrency= 15) {
     const { files, folders } = await this.plugin.app.vault.adapter.list(path);
 
     const processFile = async (file) => {
         try {
             console.log(file);
 
-            if (this.isExcluded(file)) {
+            if (exclude && this.isExcluded(file)) {
                 return;
             }
 
@@ -252,9 +261,14 @@ async getHiddenLocalFiles(path: string, concurrency= 15) {
         try {
             console.log(folder + "/");
 
+            if (exclude){
+
             if (!this.isExcluded(folder + "/")) {
                 this.localFiles[folder + "/"] = "";
-                await this.getHiddenLocalFiles(normalizePath(folder), concurrency);
+                await this.getHiddenLocalFiles(normalizePath(folder), exclude, concurrency);
+            }} else {
+                this.localFiles[folder + "/"] = "";
+                await this.getHiddenLocalFiles(normalizePath(folder), exclude, concurrency);
             }
 
         } catch (error) {
@@ -263,7 +277,44 @@ async getHiddenLocalFiles(path: string, concurrency= 15) {
     }));
 }
 
+generatePrevHashTree = async () => {
+    this.localFiles = {}
+    
+    const localTFiles: TAbstractFile[] = this.plugin.app.vault.getAllLoadedFiles()
 
+        await Promise.all(localTFiles.map(async (element) => {
+        // const filePath = element.path
+        try{
+        // console.log("FILE",element)
+        if (element instanceof TFile){
+            const filePath = element.path
+
+            const content = await this.plugin.app.vault.read(element)
+
+            this.localFiles[filePath] = this.sha1(content)
+
+        } else if (element instanceof TFolder){
+            const filePath = element.path + "/"
+            if (filePath === "//"){
+                return
+            }
+            this.localFiles[filePath] = "";
+
+        } else {
+            console.error("NEITHER FILE NOR FOLDER? ",element)
+        }
+    } catch (error){
+        console.error("localTFiles Errororr",element,error)
+    }
+        
+    }));
+   
+    this.localFiles[".obsidian/"]= ""
+    await this.getHiddenLocalFiles(normalizePath(".obsidian"), false)
+    
+    // this.plugin.localFiles = this.localFiles
+    return this.localFiles
+}
 
 generateLocalHashTree = async () => {
     // const rootFolder = self.basePath;

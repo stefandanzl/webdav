@@ -23,7 +23,8 @@ export interface CloudrSettings {
     modifySyncInterval: number,
     modifySync: boolean,
     enableRibbons: boolean,
-    skipHidden: boolean,
+    skipHiddenDesktop: boolean,
+    skipHiddenMobile: boolean,
 
 }
 
@@ -48,7 +49,8 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     autoSync: false,
     autoSyncInterval: 10,
     enableRibbons: true,
-    skipHidden: false,
+    skipHiddenMobile: false,
+    skipHiddenDesktop: false,
 
 }
 
@@ -204,7 +206,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
 
         new Setting(containerEl)
             .setName("Launch Sync")
-            .setDesc("Check files and sync on app start automatically")
+            .setDesc("Check files and sync on app start automatically.\nPress ALT Key on Windows to skip")
             .addToggle((toggle) =>
                 toggle
                 .setValue(this.plugin.settings.launchSync)
@@ -328,18 +330,28 @@ export class CloudrSettingsTab extends PluginSettingTab {
             );
 
             new Setting(containerEl)
-            .setName("Skip .obsidian sync")
-            .setDesc("This function is recommended especially on mobile, enable for quicker file checking, disable to sync plugins and more")
+            .setName("Skip .obsidian sync on mobile")
+            .setDesc("Recommended especially for mobile usage for faster file checking")
             .addToggle((toggle) =>
                 toggle
-                .setValue(this.plugin.settings.skipHidden)
+                .setValue(this.plugin.settings.skipHiddenMobile)
                 .onChange(async (value) => {
-                    this.plugin.settings.skipHidden = value;
+                    this.plugin.settings.skipHiddenDesktop = value;
                     await this.plugin.saveSettings(); 
                 })
             );
 
-
+            new Setting(containerEl)
+            .setName("Skip .obsidian sync on desktop")
+            .setDesc("Will only apply to desktop version")
+            .addToggle((toggle) =>
+                toggle
+                .setValue(this.plugin.settings.skipHiddenDesktop)
+                .onChange(async (value) => {
+                    this.plugin.settings.skipHiddenDesktop = value;
+                    await this.plugin.saveSettings(); 
+                })
+            );
 
     }
 }
@@ -430,7 +442,7 @@ export class FileTreeModal extends Modal {
     );
     saveButton.addEventListener('click', () => {
         this.plugin.show("Saving current vault file state for future synchronisation actions")
-        this.plugin.saveState(true)
+        this.plugin.saveState()
     });
 
     

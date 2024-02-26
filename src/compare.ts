@@ -1,5 +1,7 @@
 // @ts-nocheck
 import Cloudr from "./main"
+import {  extname, //checksum// sha1 // emptyObj, join, 
+} from './util';
 
 export class Compare{
   
@@ -153,46 +155,48 @@ checkExistKeyBoth = (sourceObject={}, referenceObject={}) => {
 };
 
 filterExclusions = (fileTree: object,  exclusions: { extensions?: string[], directories?: string[], markers?: string[] }) =>{
-    const { extensions = [], directories = [], markers = [] } = exclusions;
-    const filtered = {}
-    
-    for (const filePath in fileTree){
+const { extensions = [], directories = [], markers = [] } = this.plugin.settings.exclusions
+const filtered = {}
+const directoriesMod = [...directories] // necessary because otherwise original array will be manipulated!
 
-    const folders = filePath.split('/');
-    if(!filePath.endsWith("/")){
-        folders.pop();
+if (this.plugin.mobile){
+    if (this.plugin.settings.skipHiddenMobile){
+        directoriesMod.push(".obsidian")
     }
-    if(folders.some(folder => directories.includes(folder))){
-      console.log("filtered",filePath)
-        continue
-    }
-
-    // // Check file extensions
-    // const extension = extname(filePath).toLowerCase();
-    // if (extensions.includes(extension)) {
-    //   console.log("filtered")
-    //     continue
-    // }
-
-// Check file extensions without using extname
-// if (extensions && extensions.length > 0) {
-const lastDotIndex = filePath.lastIndexOf('.');
-if (lastDotIndex !== -1) {
-    const extension = filePath.slice(lastDotIndex).toLowerCase();
-    if (extensions.includes(extension)) {
-      console.log("filtered",filePath)
-        continue;
+} else {
+    if (this.plugin.settings.skipHiddenDesktop){
+        directoriesMod.push(".obsidian")
     }
 }
-// }
 
-// if (markers && markers.length > 0) {
-    // Check markers
-    if (markers.some(marker => filePath.includes(marker))) {
-      console.log("filtered",filePath)
-        continue
-    }
-  // }
+
+if (this.plugin.settings.exclusionsOverride){
+    return false
+}
+
+
+for (const filePath in fileTree){
+
+
+const folders = filePath.split('/');
+if(!filePath.endsWith("/")){
+    folders.pop();
+}
+if(folders.some(folder => directoriesMod.includes(folder))){
+    return true
+}
+
+// Check file extensions
+const extension = extname(filePath).toLowerCase();
+if (extensions.includes(extension)) {
+    return true;
+}
+
+// Check markers
+if (markers.some(marker => filePath.includes(marker))) {
+    return true;
+}
+
 
     filtered[filePath] = fileTree[filePath]
     }

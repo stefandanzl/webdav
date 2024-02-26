@@ -55,6 +55,7 @@ export default class Cloudr extends Plugin {
     message: string;
     lastSync: number;
 
+    skipLaunchSync: boolean;
     lastLiveSync: number;
     // LiveSyncTimeoutId: NodeJS.Timeout | null;
     liveSyncTimeouts: Record<string, NodeJS.Timeout | null> = {};
@@ -72,6 +73,7 @@ export default class Cloudr extends Plugin {
 
     // checkHidden: boolean;
     checkTime: number;
+    testVal: boolean;
     // showLoading: boolean;
 
     async onload() {
@@ -88,6 +90,12 @@ export default class Cloudr extends Plugin {
 
         this.connectionError = false;
 
+        this.skipLaunchSync = false;
+        this.testVal = false;
+
+        if (this.settings.launchSync){
+        document.addEventListener("keydown", this.checkKeylaunchSync, { once: true });
+        }
         // // this.checkHidden = !this.mobile; 
         // this.checkHidden = true;
         // console.log("MOBILE: ",this.mobile,"\ncheckHidden",this.checkHidden)
@@ -111,9 +119,7 @@ export default class Cloudr extends Plugin {
         this.push()
       });
 
-      this.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
-        this.fullSync()
-      });
+
 
         this.addRibbonIcon("download-cloud", "PULL from Webdav", () => {
             this.pull()
@@ -122,6 +128,10 @@ export default class Cloudr extends Plugin {
 
 
         }
+
+        this.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
+            this.fullSync()
+          });
 
         this.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
             this.displayModal()
@@ -292,7 +302,21 @@ export default class Cloudr extends Plugin {
         }
 
         if (this.settings.launchSync){
-        this.app.workspace.onLayoutReady(()=>{this.launchSyncCallback()})
+        this.app.workspace.onLayoutReady(()=>{
+            this.testVal = true;
+            this.launchSyncCallback()})
+        }
+
+        
+    }
+
+    checkKeylaunchSync(ev: KeyboardEvent){
+        if (ev.altKey) {
+            console.log("Alt key is currently pressed");
+            this.skipLaunchSync = true
+            console.log("Skippy: ",this.skipLaunchSync)
+            // Remove the event listener after detecting the key press
+            document.removeEventListener("keydown", this.checkKeylaunchSync);
         }
     }
 
@@ -329,8 +353,26 @@ export default class Cloudr extends Plugin {
 }
 
 async launchSyncCallback() {
+    console.log("launchSyncCallback")
+    console.log("testVal ",this.testVal)
+    document.removeEventListener("keydown", this.checkKeylaunchSync);
+    console.log("skip launchSyncCallback is ",this.skipLaunchSync)
+    if (this.skipLaunchSync){
+        console.log("exit launchSyncCallback")
+        return
+    }
+
     if (!this.prevData.error) {
         // this.setStatus("🚀");
+        
+        // setTimeout(()=>{
+        //     console.log("waiting over")
+        // }, 500)
+        
+        // if (this.mobile === false && this.app.lastEvent?.altKey === true){
+        //     this.show("Alt key pressed to skip Launch")
+        //     return
+        // }
         try {
             const ok = await this.test()
         if (ok){
@@ -704,7 +746,7 @@ setOpenPull(){    // set
 
     
     async check(button = true) {
-        if (!button || !this.status){ //disable status check if button = false for fullsync etc.
+        if (this.status != "🔎" && (!button || !this.status)){ //disable status check if button = false for fullsync etc.
             this.setStatus("🔎");
             this.show("🔎 Checking ...")
             
@@ -824,11 +866,11 @@ setOpenPull(){    // set
                     this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except,  this.baseWebdav)
                 ]);
             }
-                // this.finished()
+                this.finished()
                 button && this.show("Pulling completed - checking again")
                 await this.check(true)
                 this.force = "save"
-                await this.saveState(true)
+                await this.saveState()
                 button && this.show("Done")
             } catch (error){
                 console.error("PULL", error)
@@ -912,11 +954,11 @@ setOpenPull(){    // set
             ])
         }
             
-            // this.finished()
+            this.finished()
             button && this.show("Pushing completed - saving current state ...")
             await this.check(true)
             this.force = "save"
-            await this.saveState(true)
+            await this.saveState()
             button && this.show("Done")
         } catch (error){
             // button && this.show("PUSH Error: " + error)
@@ -1072,12 +1114,15 @@ setOpenPull(){    // set
 
     async setError(error: boolean){
         this.prevData.error = error
-        this.setStatus("")
+        if (error){
+            this.setStatus("")
+        }
+        // this.setStatus("")
         this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2))
     }
 
     // default true in order for except to be updated
-    async saveState(check= true) {
+    async saveState(check= false) {
         console.log("save state")
         const action = "save"
         if (this.prevData.error ){
@@ -1094,19 +1139,19 @@ setOpenPull(){    // set
             try {
                 // let files
                 
-            if (check){
-                const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-                const localPromise = this.checksum.generateLocalHashTree();
+            // if (check){
+            //     const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
+            //     const localPromise = this.checksum.generateLocalHashTree();
 
-                // Use Promise.all to execute both promises simultaneously
-                const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
-                const comparedFileTrees = await this.compare.compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
-                this.fileTrees = comparedFileTrees;
-                this.prevData.files = localFiles;
-                console.log(localFiles)
-            } else {
-                this.prevData.files = await this.checksum.generateLocalHashTree();
-            }
+            //     // Use Promise.all to execute both promises simultaneously
+            //     const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
+            //     const comparedFileTrees = await this.compare.compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
+            //     this.fileTrees = comparedFileTrees;
+            //     this.prevData.files = localFiles;
+            //     console.log(localFiles)
+            // } else {
+                this.prevData.files = await this.checksum.generatePrevHashTree();
+            // }
 
             console.log("SwagggG",this.prevData.files)
                 this.prevData =
