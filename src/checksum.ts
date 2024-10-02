@@ -1,6 +1,6 @@
 // @ts-nocheck
 import { WebDAVClient } from "webdav";
-// import { findMatchingKeys } from './operations';
+
 import Cloudr from "./main";
 import {
   extname, //checksum// sha1 // emptyObj, join,
@@ -11,10 +11,7 @@ import {
   TFolder,
   normalizePath, // App, Vault,
 } from "obsidian";
-// import * as CryptoJS from "crypto-js"
-// import { sha1 } from './sha1-wrapper';
-// import {sha1} from "js-sha1"
-// import * as CryptoJS from "crypto-js"
+
 import { createHash } from "crypto";
 import { createHash as uintCreateHash } from "sha1-uint8array";
 
