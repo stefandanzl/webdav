@@ -1,6 +1,5 @@
 // @ts-nocheck
 /* eslint-disable no-var */
-// import * as CryptoJS from "crypto-js"
 // import { createHash } from 'crypto';
 
 export const join = (...args: string[]) => {
