@@ -47,16 +47,16 @@ export default class Cloudr extends Plugin {
   webdavClient: WebDAVClient;
   fileTrees: {
     webdavFiles: {
-      added: object;
-      deleted: object;
-      modified: object;
-      except: object;
+      added: Record<string, string>;
+      deleted: Record<string, string>;
+      modified: Record<string, string>;
+      except: Record<string, string>;
     };
     localFiles: {
-      added: object;
-      deleted: object;
-      modified: object;
-      except: object;
+      added: Record<string, string>;
+      deleted: Record<string, string>;
+      modified: Record<string, string>;
+      except: Record<string, string>;
     };
   };
   vaultName: string;

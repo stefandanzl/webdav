@@ -3,7 +3,7 @@
 version: '3'
 
 vars:
-  DIR_PLUGIN: C:\PROJECTS\Obsidian\dev7\.obsidian\plugins\booksidian-plugin
+  DIR_PLUGIN: C:\PROJECTS\Obsidian\dev7\.obsidian\plugins\webdav
 
 tasks:
   default:
@@ -24,3 +24,6 @@ tasks:
       - git add .
       - git commit -m "task"
       - git push
+  test:
+    cmds:
+      - npm test -env-file .env

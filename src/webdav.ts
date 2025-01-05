@@ -9,6 +9,14 @@ export interface WebDAVConnection {
     password: string;
 }
 
+interface WebDAVResource {
+    href: string;
+    type: 'file' | 'directory';
+    contentLength?: number;
+    lastModified?: string;
+    contentType?: string;
+}
+
 function createAuthHeader(username: string, password: string): string {
     return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
 }
@@ -162,13 +170,7 @@ export async function webdavList(connection: WebDAVConnection, path: string = '/
     return parseWebDAVList(response.text);
 }
 
-interface WebDAVResource {
-    href: string;
-    type: 'file' | 'directory';
-    contentLength?: number;
-    lastModified?: string;
-    contentType?: string;
-}
+
 
 function parseWebDAVList(xmlString: string): WebDAVResource[] {
     const parser = new DOMParser();

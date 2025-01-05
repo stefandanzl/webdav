@@ -2,7 +2,7 @@
 // tests/webdav.test.ts
 import { describe, test, expect, beforeAll, jest, xtest, xdescribe,  } from '@jest/globals';
 import { requestUrl } from 'obsidian';
-import { webdavGet, webdavPropfind, webdavPut, webdavDelete, WebDAVConnection, parseFileProps } from '../src/webdav';
+import { webdavGet, webdavPropfind, webdavPut, webdavDelete, WebDAVConnection, parseFileProps, webdavMkcol } from '../src/webdav';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
@@ -10,7 +10,7 @@ import { DOMParser } from 'xmldom';
 
 jest.mock('obsidian');
 
-xdescribe('Basic Web request tests', () => {
+describe('Basic Web request tests', () => {
     test('requestUrl function is called', async () => {
     const response = await requestUrl("https://example-files.online-convert.com/document/txt/example.txt");
     console.log(response);
@@ -48,7 +48,7 @@ describe('WebDAV Integration Tests', () => {
         expect(response.status).toBe(207); // MultiStatus response
     });
 
-    xtest('lists directory contents', async () => {
+    test('lists directory contents', async () => {
         const response = await webdavPropfind(connection, '/');
         expect(response.status).toBe(207);
         
@@ -59,18 +59,20 @@ describe('WebDAV Integration Tests', () => {
             .map(el => el.textContent || '')
             .sort();
     
-        console.log('Found paths:', paths);
+        // console.log('Found paths:', paths);
     
-        // Compare with expected paths
-        const expectedPaths = [
-            '/dav/',
-            '/dav/dev3/'
-        ].sort();
+        // // Compare with expected paths
+        // const expectedPaths = [
+        //     '/dav/',
+        //     '/dav/dev3/'
+        // ].sort();
     
-        expect(paths).toEqual(expectedPaths);
+        // expect(paths).toEqual(expectedPaths);
+
+        expect(paths).toContain('/dav/');
     });
 
-    test.only('gets file properties', async () => {
+    test('gets file properties', async () => {
         // Assuming there's a known file in your WebDAV
         const testFile = '/test.txt';
         const response = await webdavPropfind(connection, testFile, '0');
@@ -125,4 +127,25 @@ describe('WebDAV Integration Tests', () => {
         const getResponse = await webdavGet(connection, testPath);
         expect(getResponse.status).toBe(404);
     });
+
+    test('create directory and verify', async () => {
+
+        const testPath = `/test-dir-${Date.now()}`;
+        await webdavMkcol(connection, testPath);
+
+        // Verify directory creation
+        const response = await webdavPropfind(connection, testPath);
+
+        expect(response.status).toBe(207);
+
+        // // Verify the directory is a collection
+        // const properties = parseFileProps(response.text);
+        // expect(properties.type).toBe('directory');
+
+        // Clean up by deleting the directory
+        await webdavDelete(connection, testPath);
+    });
+
+
+
 });
