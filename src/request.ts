@@ -1,52 +1,96 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types */
-import {requestUrl} from 'obsidian';
+import { requestUrl, RequestUrlParam, RequestUrlResponsePromise } from 'obsidian';
 
-// Basic WebDAV operations using Obsidian's requestUrl
+// Types for WebDAV connection
+export interface WebDAVConnection {
+    baseUrl: string;
+    username: string;
+    password: string;
+    // Optional additional settings
+    defaultHeaders?: Record<string, string>;
+    timeout?: number;
+}
 
-// GET - Retrieve a resource
-export async function webdavGet(url: string, headers: Record<string, string> = {}) {
+// Helper function to create authorization header
+function getAuthHeader(username: string, password: string): string {
+    return `Basic ${Buffer.from(`${username}:${password}`).toString('base64')}`;
+}
+
+// Helper to combine base URL with path
+function createFullUrl(connection: WebDAVConnection, path: string): string {
+    const baseUrl = connection.baseUrl.endsWith('/') ? connection.baseUrl.slice(0, -1) : connection.baseUrl;
+    const cleanPath = path.startsWith('/') ? path.slice(1) : path;
+    return `${baseUrl}/${cleanPath}`;
+}
+
+// Helper to create common headers
+function createHeaders(connection: WebDAVConnection, additionalHeaders: Record<string, string> = {}): Record<string, string> {
+    return {
+        'Authorization': getAuthHeader(connection.username, connection.password),
+        ...connection.defaultHeaders,
+        ...additionalHeaders
+    };
+}
+
+// Export all WebDAV operations
+export async function webdavGet(
+    connection: WebDAVConnection, 
+    path: string, 
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, path),
         method: 'GET',
-        headers: {
-            'Depth': '1',  // Common WebDAV header
+        headers: createHeaders(connection, {
+            'Depth': '1',
             ...headers
-        }
+        })
     });
 }
 
-// PUT - Create or update a resource
-export async function webdavPut(url: string, content: string | ArrayBuffer, headers: Record<string, string> = {}) {
+export async function webdavPut(
+    connection: WebDAVConnection,
+    path: string,
+    content: string | ArrayBuffer,
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, path),
         method: 'PUT',
         body: content,
-        headers: {
+        headers: createHeaders(connection, {
             'Content-Type': 'application/octet-stream',
             ...headers
-        }
+        })
     });
 }
 
-// DELETE - Remove a resource
-export async function webdavDelete(url: string, headers: Record<string, string> = {}) {
+export async function webdavDelete(
+    connection: WebDAVConnection,
+    path: string,
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, path),
         method: 'DELETE',
-        headers
+        headers: createHeaders(connection, headers)
     });
 }
 
-// PROPFIND - Retrieve properties of a resource
-export async function webdavPropfind(url: string, depth: '0' | '1' | 'infinity' = '1', headers: Record<string, string> = {}) {
+export async function webdavPropfind(
+    connection: WebDAVConnection,
+    path: string,
+    depth: '0' | '1' | 'infinity' = '1',
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, path),
         method: 'PROPFIND',
-        headers: {
+        headers: createHeaders(connection, {
             'Depth': depth,
             'Content-Type': 'application/xml',
             ...headers
-        },
+        }),
         body: `<?xml version="1.0" encoding="utf-8" ?>
         <propfind xmlns="DAV:">
             <allprop/>
@@ -54,50 +98,68 @@ export async function webdavPropfind(url: string, depth: '0' | '1' | 'infinity' 
     });
 }
 
-// MKCOL - Create a collection/directory
-export async function webdavMkcol(url: string, headers: Record<string, string> = {}) {
+export async function webdavMkcol(
+    connection: WebDAVConnection,
+    path: string,
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, path),
         method: 'MKCOL',
-        headers
+        headers: createHeaders(connection, headers)
     });
 }
 
-// COPY - Copy a resource
-export async function webdavCopy(url: string, destination: string, overwrite: boolean = true, headers: Record<string, string> = {}) {
+export async function webdavCopy(
+    connection: WebDAVConnection,
+    sourcePath: string,
+    destinationPath: string,
+    overwrite: boolean = true,
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, sourcePath),
         method: 'COPY',
-        headers: {
-            'Destination': destination,
+        headers: createHeaders(connection, {
+            'Destination': createFullUrl(connection, destinationPath),
             'Overwrite': overwrite ? 'T' : 'F',
             ...headers
-        }
+        })
     });
 }
 
-// MOVE - Move a resource
-export async function webdavMove(url: string, destination: string, overwrite: boolean = true, headers: Record<string, string> = {}) {
+export async function webdavMove(
+    connection: WebDAVConnection,
+    sourcePath: string,
+    destinationPath: string,
+    overwrite: boolean = true,
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, sourcePath),
         method: 'MOVE',
-        headers: {
-            'Destination': destination,
+        headers: createHeaders(connection, {
+            'Destination': createFullUrl(connection, destinationPath),
             'Overwrite': overwrite ? 'T' : 'F',
             ...headers
-        }
+        })
     });
 }
 
-// PROPPATCH - Modify properties of a resource
-export async function webdavProppatch(url: string, propertyName: string, propertyValue: string, headers: Record<string, string> = {}) {
+export async function webdavProppatch(
+    connection: WebDAVConnection,
+    path: string,
+    propertyName: string,
+    propertyValue: string,
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, path),
         method: 'PROPPATCH',
-        headers: {
+        headers: createHeaders(connection, {
             'Content-Type': 'application/xml',
             ...headers
-        },
+        }),
         body: `<?xml version="1.0" encoding="utf-8" ?>
         <propertyupdate xmlns="DAV:">
             <set>
@@ -109,16 +171,21 @@ export async function webdavProppatch(url: string, propertyName: string, propert
     });
 }
 
-// LOCK - Lock a resource
-export async function webdavLock(url: string, owner: string, timeout: string = 'Infinite', headers: Record<string, string> = {}) {
+export async function webdavLock(
+    connection: WebDAVConnection,
+    path: string,
+    owner: string,
+    timeout: string = 'Infinite',
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, path),
         method: 'LOCK',
-        headers: {
+        headers: createHeaders(connection, {
             'Timeout': timeout,
             'Content-Type': 'application/xml',
             ...headers
-        },
+        }),
         body: `<?xml version="1.0" encoding="utf-8" ?>
         <lockinfo xmlns="DAV:">
             <lockscope><exclusive/></lockscope>
@@ -128,49 +195,19 @@ export async function webdavLock(url: string, owner: string, timeout: string = '
     });
 }
 
-// UNLOCK - Unlock a resource
-export async function webdavUnlock(url: string, lockToken: string, headers: Record<string, string> = {}) {
+export async function webdavUnlock(
+    connection: WebDAVConnection,
+    path: string,
+    lockToken: string,
+    headers: Record<string, string> = {}
+): Promise<RequestUrlResponsePromise> {
     return await requestUrl({
-        url,
+        url: createFullUrl(connection, path),
         method: 'UNLOCK',
-        headers: {
+        headers: createHeaders(connection, {
             'Lock-Token': lockToken,
             ...headers
-        }
+        })
     });
 }
 
-// Example usage:
-async function example() {
-    try {
-        // Create a directory
-        await webdavMkcol('https://webdav.server.com/newdir');
-        
-        // Upload a file
-        await webdavPut('https://webdav.server.com/newdir/file.txt', 'Hello WebDAV!');
-        
-        // Get file properties
-        const props = await webdavPropfind('https://webdav.server.com/newdir/file.txt', '0');
-        
-        // Move the file
-        await webdavMove(
-            'https://webdav.server.com/newdir/file.txt',
-            'https://webdav.server.com/newdir/moved.txt'
-        );
-        
-        // Lock the file
-        const lockResponse = await webdavLock(
-            'https://webdav.server.com/newdir/moved.txt',
-            'user@example.com'
-        );
-        
-        // Later, unlock the file
-        await webdavUnlock(
-            'https://webdav.server.com/newdir/moved.txt',
-            lockResponse.headers['Lock-Token']
-        );
-        
-    } catch (error) {
-        console.error('WebDAV operation failed:', error);
-    }
-}
