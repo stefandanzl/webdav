@@ -66,7 +66,7 @@ export class Operations {
             const remotePath = join(remoteBasePath, filePath);
             
             // Verify remote file exists
-            const remoteStats = await webdavClient.stat(remotePath);
+            const remoteStats = await webdavClient.exists(remotePath);
             if (!remoteStats) {
                 console.error(`Remote file not found: ${remotePath}`);
                 return;
@@ -90,7 +90,7 @@ export class Operations {
      * Upload files to WebDAV server
      */
     async uploadFiles(
-        webDavClient: WebDAVClient,
+        webdavClient: WebDAVClient,
         fileChecksums: object | undefined,
         remoteBasePath: string
     ): Promise<void> {
@@ -101,7 +101,7 @@ export class Operations {
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const [localFilePath, _] of Object.entries(fileChecksums)) {
-            await this.uploadFile(webDavClient, localFilePath, remoteBasePath);
+            await this.uploadFile(webdavClient, localFilePath, remoteBasePath);
         }
 
         console.log("Upload completed");
@@ -111,13 +111,13 @@ export class Operations {
      * Upload a single file to WebDAV
      */
     private async uploadFile(
-        webDavClient: WebDAVClient,
+        webdavClient: WebDAVClient,
         localFilePath: string,
         remoteBasePath: string
     ): Promise<void> {
         try {
             if (localFilePath.endsWith("/")) {
-                await this.ensureRemoteDirectory(webDavClient, localFilePath, remoteBasePath);
+                await this.ensureRemoteDirectory(webdavClient, localFilePath, remoteBasePath);
                 return;
             }
 
@@ -126,7 +126,7 @@ export class Operations {
             );
             const remoteFilePath = join(remoteBasePath, localFilePath);
 
-            await webDavClient.putFileContents(remoteFilePath, fileContent);
+            await webdavClient.put(remoteFilePath, fileContent);
             this.plugin.processed();
             console.log(`Uploaded: ${localFilePath} to ${remoteFilePath}`);
         } catch (error) {
@@ -198,13 +198,13 @@ export class Operations {
     }
 
     private async ensureRemoteDirectory(
-        webDavClient: WebDAVClient,
+        webdavClient: WebDAVClient,
         path: string,
         basePath: string
     ): Promise<void> {
         try {
             console.log(`Creating remote directory: ${path}`);
-            await webDavClient.createDirectory(
+            await webdavClient.createDirectory(
                 join(basePath, path.replace(/\/$/, ""))
             );
         } catch (error) {
@@ -213,13 +213,13 @@ export class Operations {
     }
 
     private async deleteWebDavFile(
-        client: WebDAVClient,
+        webdavClient: WebDAVClient,
         file: string,
         basePath: string
     ): Promise<void> {
         const path = file.endsWith("/") ? file.replace(/\/$/, "") : file;
         try {
-            await this.deleteWithRetry(client, join(basePath, path));
+            await this.deleteWithRetry(webdavClient, join(basePath, path));
             this.plugin.processed();
             console.log(`Deleted from WebDAV: ${path}`);
         } catch (error) {

@@ -30,7 +30,9 @@ export class Checksum {
       const { filename, type, props } = item;
 
       const isDirectory = type === "directory";
-      const fullPath = isDirectory ? filename + "/" : filename;
+      // const fullPath = isDirectory ? filename + "/" : filename;
+
+      const fullPath = filename;
 
       if (this.isExcluded(fullPath)) {
         return; // Skip excluded files and folders
@@ -373,7 +375,7 @@ export class Checksum {
     try {
       const exists = await webdavClient.exists(rootFolder);
       if (exists) {
-        // console.log("DOES EXIST")
+        console.log("ROOTFOLDER DOES EXIST")
       } else {
         console.log("DOES NOT EXIST");
         await webdavClient.createDirectory(rootFolder);
@@ -396,7 +398,8 @@ export class Checksum {
 
       const contents = await webdavClient.getDirectory(rootFolder, "infinity")
 
-      console.log("Contents:", JSON.stringify(contents));
+      console.log("Contents:", JSON.stringify(contents, null, 2));
+     
       // console.log("Contents:", JSON.stringify(contents));
       // writeFileSync("out/output-webdav1.json", JSON.stringify(contents, null, 2));
 

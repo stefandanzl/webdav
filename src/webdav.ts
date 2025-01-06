@@ -109,17 +109,21 @@ export class WebDAVClient {
     }
 
 
-    async put(path: string, content: string | ArrayBuffer): Promise<RequestUrlResponse> {
-        return await requestUrl({
+    async put(path: string, content: string | ArrayBuffer): Promise<boolean> {
+        const response = await requestUrl({
             url: this.createFullUrl(path),
             method: 'PUT',
             headers: {
                 'Authorization': this.createAuthHeader(),
-                'Content-Type': content instanceof ArrayBuffer ? 'application/octet-stream' : 'text/plain'
+                'Content-Type': content instanceof ArrayBuffer ? 'application/octet-stream' : 'text/plain',
+                'Translate': 'f'  // Tell WebDAV not to do URL translation
             },
             body: content
         });
+        
+        return response.status === 201;
     }
+    
 
     async delete(path: string): Promise<RequestUrlResponse> {
         return await requestUrl({
@@ -163,6 +167,11 @@ export class WebDAVClient {
                 'Authorization': this.createAuthHeader()
             }
         });
+    }
+
+    async createDirectory(path: string): Promise<boolean> {
+        const response = await this.mkcol(path);
+        return response.status === 201;
     }
 
     async list(path: string = '/'): Promise<WebDAVResource[]> {
@@ -213,36 +222,43 @@ export class WebDAVClient {
 
     
     async getDirectory(path: string = '/', depth: "0" | "1" | "infinity" = "1"): Promise<WebDAVDirectoryItem[]> {
-
         const response = await this.propfind(path, depth);
         const parser = new DOMParser();
         const doc = parser.parseFromString(response.text, 'text/xml');
         const responses = doc.getElementsByTagNameNS('DAV:', 'response');
         const items: WebDAVDirectoryItem[] = [];
     
-    // Get base path from first response (usually the directory itself)
-    const firstHref = responses[0]?.getElementsByTagNameNS('DAV:', 'href')[0]?.textContent || '';
-    const basePath = firstHref.split('/').slice(0, -1).join('/');
+        // Get base path from first response (usually the directory itself)
+        const firstHref = responses[0]?.getElementsByTagNameNS('DAV:', 'href')[0]?.textContent || '';
+        const basePath = firstHref.split('/').slice(0, -1).join('/');
+    
+        for (let i = 0; i < responses.length; i++) {
+            const response = responses[i];
+            const prop = response.getElementsByTagNameNS('DAV:', 'prop')[0];
+            
+            const href = response.getElementsByTagNameNS('DAV:', 'href')[0]?.textContent || '';
+            // Remove base path from href and clean up path
+            let relativePath = href.replace(basePath, '');
+            
+            // Clean up the path
+            relativePath = relativePath.replace(/^\/+/, '').replace(/\/+/g, '/');
+    
+            if (!relativePath || relativePath === '/') {
+                continue; // Skip the base directory
+            }
+    
+            const resourcetype = prop.getElementsByTagNameNS('DAV:', 'resourcetype')[0];
+            const isCollection = resourcetype?.getElementsByTagNameNS('DAV:', 'collection').length > 0;
+    
+            // For directories, ensure they end with exactly one slash
+            let finalPath = isCollection ? `${relativePath}/` : relativePath;
 
-    for (let i = 0; i < responses.length; i++) {
-        const response = responses[i];
-        const prop = response.getElementsByTagNameNS('DAV:', 'prop')[0];
-        
-        const href = response.getElementsByTagNameNS('DAV:', 'href')[0]?.textContent || '';
-        // Remove base path from href
-        const relativePath = href.replace(basePath, '') || '/';
-
-        const resourcetype = prop.getElementsByTagNameNS('DAV:', 'resourcetype')[0];
-        const isCollection = resourcetype?.getElementsByTagNameNS('DAV:', 'collection').length > 0;
-
-        if (relativePath === '/') {
-            continue; // Skip the base directory
-        }
-
-        const item: WebDAVDirectoryItem = {
-            basename: relativePath.split('/').filter(Boolean).pop() || '',
-            etag: prop.getElementsByTagNameNS('DAV:', 'getetag')[0]?.textContent?.replace(/"/g, '') || null,
-            filename: relativePath,  // Use the relative path here
+            finalPath = finalPath.replace(/^\/+/, '').replace(/\/+/g, '/');
+            
+            const item: WebDAVDirectoryItem = {
+                basename: decodeURIComponent(relativePath.split('/').filter(Boolean).pop() || ''),
+                etag: prop.getElementsByTagNameNS('DAV:', 'getetag')[0]?.textContent?.replace(/"/g, '') || null,
+                filename: decodeURIComponent(finalPath),  // Decode the cleaned path
                 lastmod: prop.getElementsByTagNameNS('DAV:', 'getlastmodified')[0]?.textContent || '',
                 mime: prop.getElementsByTagNameNS('DAV:', 'getcontenttype')[0]?.textContent || '',
                 props: {
@@ -274,7 +290,7 @@ export class WebDAVClient {
     
             const etag = prop.getElementsByTagNameNS('DAV:', 'getetag')[0]?.textContent;
             if (etag) {
-                item.props.getetag = etag;
+                item.props.getetag = etag.replace(/"/g, '');  // Remove quotes from etag
             }
     
             // Add checksums object if it exists
@@ -288,6 +304,6 @@ export class WebDAVClient {
             items.push(item);
         }
     
-        return items;
+        return {data: items};
     }
 }

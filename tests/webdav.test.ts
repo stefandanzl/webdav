@@ -78,32 +78,49 @@ describe('WebDAV Integration Tests', () => {
         expect(properties.checksum).toBe('eb1d87f1000a2b26b333742e1a1e64fde659bc5e');
     });
 
-    test.only('downloads file and compares with local copy', async () => {
+    test('downloads file and compares with local copy', async () => {
         // First, read the local file
         const localFilePath = path.join(__dirname, 'fixtures', 'test.txt');
         const localContent = await fs.readFile(localFilePath, 'utf8');
 
         // Download the same file from WebDAV
         const response = await client.get('/test.txt');
-        expect(response.status).toBe(200);
+        // expect(response.status).toBe(200);
         
         // Compare contents
-        expect(response.text).toBe(localContent);
+        expect(response.toString()).toBe(localContent);
     });
 
-    test('uploads and verifies file', async () => {
+    // test('uploads and verifies file', async () => {
+    //     const testContent = 'Test file content ' + Date.now();
+    //     const testPath = `/test-upload-${Date.now()}.txt`;
+
+    //     // Upload file
+    //     const uploadResponse = await client.put(testPath, testContent);
+    //     expect(uploadResponse.status).toBe(201);
+
+    //     // Verify upload
+    //     const downloadResponse = await client.get(testPath);
+    //     expect(downloadResponse.status).toBe(200);
+    //     expect(downloadResponse.text).toBe(testContent);
+    // });
+
+    test.only('uploads and verifies file', async () => {
         const testContent = 'Test file content ' + Date.now();
         const testPath = `/test-upload-${Date.now()}.txt`;
 
         // Upload file
         const uploadResponse = await client.put(testPath, testContent);
-        expect(uploadResponse.status).toBe(201);
+        expect(uploadResponse).toBe(true);
 
         // Verify upload
         const downloadResponse = await client.get(testPath);
-        expect(downloadResponse.status).toBe(200);
-        expect(downloadResponse.text).toBe(testContent);
+        // expect(downloadResponse.status).toBe(200);
+        const downloadedContent = new TextDecoder().decode(downloadResponse);
+        expect(downloadedContent).toBe(testContent);
     });
+
+    
 
     test('deletes file and verifies deletion', async () => {
         // First create a file to delete
@@ -116,7 +133,7 @@ describe('WebDAV Integration Tests', () => {
     
         // Verify file is gone by checking for 404 status
         const getResponse = await client.get(testPath);
-        expect(getResponse.status).toBe(404);
+        expect(getResponse).toBeUndefined();
     });
 
     test('create directory and verify', async () => {

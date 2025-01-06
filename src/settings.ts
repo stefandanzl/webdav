@@ -44,7 +44,7 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
   exclusions: {
     directories: ["node_modules", ".git", "webdav"],
     extensions: [".exe"],
-    markers: ["prevdata.json"],
+    markers: ["prevdata.json",".obsidian/workspace.json"],
   },
   exclusionsOverride: false,
 

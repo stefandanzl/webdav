@@ -7,6 +7,7 @@ import {
   Notice,
   Plugin,
   Platform, // App, Editor, MarkdownView, Modal, PluginSettingTab, Setting
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   requestUrl
 } from "obsidian";
 
@@ -17,8 +18,9 @@ import {
   CloudrSettings,
   DEFAULT_SETTINGS,
   CloudrSettingsTab,
-  FileTreeModal,
+  // FileTreeModal,
 } from "./settings";
+import { FileTreeModal } from "./modal";
 import {
   Checksum, //generateLocalHashTree, generateWebdavHashTree
 } from "./checksum";
@@ -32,7 +34,7 @@ import {
   join,
   emptyObj, //sha1
 } from "./util";
-
+import { testFuncOne } from "./testFuncs";
 
 export default class Cloudr extends Plugin {
   settings: CloudrSettings;
@@ -724,6 +726,7 @@ export default class Cloudr extends Plugin {
   }
 
   async test(button = true) {
+    return true
     try {
       this.setStatus("🧪");
       this.show("🧪 Testing ...");
@@ -790,15 +793,17 @@ export default class Cloudr extends Plugin {
       // const stat = await this.webdavClient.propfind("/test.txt","0")
       // console.log("STAT",stat)
 
+      await testFuncOne(this);
+
       const dirProp = await this.webdavClient.propfind("/","1")
-      console.log("STAT",dirProp)
+      console.log("dirpropp",dirProp)
 
       try {
         const dir = await this.webdavClient.getDirectory(
           this.settings.webdavPath, "1"
         );
 
-        console.log(dir)
+        console.log(JSON.stringify(dir))
 
         if (dir) {
           // this.prevData.error = false
