@@ -7,6 +7,7 @@ import {
   Notice,
   Plugin,
   Platform, // App, Editor, MarkdownView, Modal, PluginSettingTab, Setting
+  requestUrl
 } from "obsidian";
 
 // import { readdirSync } from 'fs';
@@ -589,9 +590,8 @@ export default class Cloudr extends Plugin {
 
         // const res = await this.webdavClient.stat(remoteFilePath, {details: true})
         const remoteContent = (await this.webdavClient.get(
-          remoteFilePath,
-          { format: "text" }
-        )) as unknown as string;
+          remoteFilePath
+        )) as unknown as ArrayBuffer;
         if (remoteContent !== null && remoteContent !== undefined) {
           // console.log(res);
           //     //@ts-ignore
@@ -627,7 +627,7 @@ export default class Cloudr extends Plugin {
                 Date.now() - file.stat.ctime
               );
 
-              this.app.vault.modify(file, remoteContent);
+              this.app.vault.modifyBinary(file, remoteContent);
             } else {
               console.log("File too old!");
             }
@@ -728,8 +728,10 @@ export default class Cloudr extends Plugin {
       this.setStatus("🧪");
       this.show("🧪 Testing ...");
 
-      // Get the contents of the root directory
-      const directoryContents = await this.webdavClient.propfind(this.settings.webdavPath, "1");
+      const directoryContents = await this.webdavClient.getDirectory(
+        this.settings.webdavPath, "1"
+      );
+      console.log(directoryContents)
 
       // Filter out only directories
       // @ts-ignore
@@ -778,11 +780,25 @@ export default class Cloudr extends Plugin {
       this.setStatus("🔎");
       this.show("🔎 Checking ...");
 
+      // const content = await requestUrl("https://jsonplaceholder.typicode.com/posts/1");
+      // console.log(content);
+      // console.log(JSON.stringify(content, null, 2));
+
+      // const webdavContent = await requestUrl({"url":"https://devcloudr.danzl.it/dav/test.txt","method":"GET","headers":{"Authorization":"Basic YWRtaW5AY2xvdWRyLm9yZzpicERDbnprUFhScU5Qb2IzWU15bTVZdm5JS09Cc1RPVw=="}})
+      // console.log("WEBDAV CCC",webdavContent);
+      
+      // const stat = await this.webdavClient.propfind("/test.txt","0")
+      // console.log("STAT",stat)
+
+      const dirProp = await this.webdavClient.propfind("/","1")
+      console.log("STAT",dirProp)
+
       try {
-        // Get Directory Contents
-        const dir = await this.webdavClient.propfind(
-          this.settings.webdavPath, "0"
+        const dir = await this.webdavClient.getDirectory(
+          this.settings.webdavPath, "1"
         );
+
+        console.log(dir)
 
         if (dir) {
           // this.prevData.error = false

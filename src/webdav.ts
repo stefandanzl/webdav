@@ -53,14 +53,22 @@ export class WebDAVClient {
         };
     }
 
-    async get(path: string): Promise<RequestUrlResponse> {
-        return await requestUrl({
+
+    
+    async get(path: string): Promise<ArrayBuffer> {
+        const response = await requestUrl({
             url: this.createFullUrl(path),
             method: 'GET',
             headers: {
                 'Authorization': this.createAuthHeader()
             }
         });
+    
+        if (response.status === 404) {
+            throw new Error(`File not found: ${path}`);
+        }
+    
+        return response.arrayBuffer;
     }
 
     /**
@@ -204,7 +212,7 @@ export class WebDAVClient {
 
 
     
-    async getDirectoryContents(path: string = '/', depth: "0" | "1" | "infinity" = "1"): Promise<WebDAVDirectoryItem[]> {
+    async getDirectory(path: string = '/', depth: "0" | "1" | "infinity" = "1"): Promise<WebDAVDirectoryItem[]> {
 
         const response = await this.propfind(path, depth);
         const parser = new DOMParser();
@@ -212,18 +220,29 @@ export class WebDAVClient {
         const responses = doc.getElementsByTagNameNS('DAV:', 'response');
         const items: WebDAVDirectoryItem[] = [];
     
-        for (let i = 0; i < responses.length; i++) {
-            const response = responses[i];
-            const prop = response.getElementsByTagNameNS('DAV:', 'prop')[0];
-            
-            const href = response.getElementsByTagNameNS('DAV:', 'href')[0]?.textContent || '';
-            const resourcetype = prop.getElementsByTagNameNS('DAV:', 'resourcetype')[0];
-            const isCollection = resourcetype?.getElementsByTagNameNS('DAV:', 'collection').length > 0;
-    
-            const item: WebDAVDirectoryItem = {
-                basename: href.split('/').filter(Boolean).pop() || '',
-                etag: prop.getElementsByTagNameNS('DAV:', 'getetag')[0]?.textContent?.replace(/"/g, '') || null,
-                filename: href,
+    // Get base path from first response (usually the directory itself)
+    const firstHref = responses[0]?.getElementsByTagNameNS('DAV:', 'href')[0]?.textContent || '';
+    const basePath = firstHref.split('/').slice(0, -1).join('/');
+
+    for (let i = 0; i < responses.length; i++) {
+        const response = responses[i];
+        const prop = response.getElementsByTagNameNS('DAV:', 'prop')[0];
+        
+        const href = response.getElementsByTagNameNS('DAV:', 'href')[0]?.textContent || '';
+        // Remove base path from href
+        const relativePath = href.replace(basePath, '') || '/';
+
+        const resourcetype = prop.getElementsByTagNameNS('DAV:', 'resourcetype')[0];
+        const isCollection = resourcetype?.getElementsByTagNameNS('DAV:', 'collection').length > 0;
+
+        if (relativePath === '/') {
+            continue; // Skip the base directory
+        }
+
+        const item: WebDAVDirectoryItem = {
+            basename: relativePath.split('/').filter(Boolean).pop() || '',
+            etag: prop.getElementsByTagNameNS('DAV:', 'getetag')[0]?.textContent?.replace(/"/g, '') || null,
+            filename: relativePath,  // Use the relative path here
                 lastmod: prop.getElementsByTagNameNS('DAV:', 'getlastmodified')[0]?.textContent || '',
                 mime: prop.getElementsByTagNameNS('DAV:', 'getcontenttype')[0]?.textContent || '',
                 props: {

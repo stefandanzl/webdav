@@ -388,10 +388,15 @@ export class Checksum {
 
     try {
       // Get directory contents - deep true, details true
-      const contents = await webdavClient.getDirectoryContents(rootFolder, {
-        deep: true,
-        details: true,
-      }); //details: true
+      // const contents = await webdavClient.getDirectoryContents(rootFolder, {
+      //   deep: true,
+      //   details: true,
+      // }); //details: true
+
+
+      const contents = await webdavClient.getDirectory(rootFolder, "infinity")
+
+      console.log("Contents:", JSON.stringify(contents));
       // console.log("Contents:", JSON.stringify(contents));
       // writeFileSync("out/output-webdav1.json", JSON.stringify(contents, null, 2));
 

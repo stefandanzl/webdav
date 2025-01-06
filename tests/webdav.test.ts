@@ -78,7 +78,7 @@ describe('WebDAV Integration Tests', () => {
         expect(properties.checksum).toBe('eb1d87f1000a2b26b333742e1a1e64fde659bc5e');
     });
 
-    test('downloads file and compares with local copy', async () => {
+    test.only('downloads file and compares with local copy', async () => {
         // First, read the local file
         const localFilePath = path.join(__dirname, 'fixtures', 'test.txt');
         const localContent = await fs.readFile(localFilePath, 'utf8');
@@ -151,7 +151,7 @@ describe('WebDAV Integration Tests', () => {
 
 
      test('gets directory contents with correct structure', async () => {
-        const contents = await client.getDirectoryContents('/');
+        const contents = await client.getDirectory('/');
 
         console.log(contents);
         
@@ -206,8 +206,8 @@ describe('WebDAV Integration Tests', () => {
         console.log('Sample directory item:', JSON.stringify(contents[0], null, 2));
     });
 
-    test.only('gets directory contents with correct path structure', async () => {
-        const contents = await client.getDirectoryContents('/');
+    test('gets directory contents with correct path structure', async () => {
+        const contents = await client.getDirectory('/');
 
         console.log(contents)
         

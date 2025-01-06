@@ -22,7 +22,7 @@ export class Operations {
             throw new Error("Missing WebDAV configuration parameters");
         }
 
-        new WebDAVClient(url, {
+        return new WebDAVClient(url, {
             username,
             password,
             headers: WEBDAV_HEADERS
@@ -176,9 +176,10 @@ export class Operations {
     ): Promise<Buffer> {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                return await webdavClient.getFileContents(remotePath, {
-                    format: "binary"
-                });
+                // return await webdavClient.getFileContents(remotePath, {
+                //     format: "binary"
+                // });
+                return await webdavClient.get(remotePath);
             } catch (error) {
                 if (attempt === maxRetries) throw error;
                 console.log(`Retry ${attempt} for ${remotePath}`);
