@@ -226,13 +226,13 @@ export class Operations {
     }
 
     private async deleteWithRetry(
-        client: WebDAVClient,
+        webdavClient: WebDAVClient,
         path: string,
         maxRetries = 2
     ): Promise<void> {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                await client.deleteFile(path);
+                await webdavClient.deleteFile(path);
                 return;
             } catch (error) {
                 if (attempt === maxRetries) throw error;

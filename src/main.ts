@@ -584,7 +584,7 @@ export default class Cloudr extends Plugin {
         console.log(this.prevData.files);
 
         const remoteFilePath = join(this.baseWebdav, filePath);
-        // await this.webdavClient.putFileContents(remoteFilePath, data);
+       
 
         // const res = await this.webdavClient.stat(remoteFilePath, {details: true})
         const remoteContent = (await this.webdavClient.getFileContents(
