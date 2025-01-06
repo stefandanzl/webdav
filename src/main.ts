@@ -599,7 +599,9 @@ export default class Cloudr extends Plugin {
           //     //@ts-ignore
           //     const remoteChksm = res.data.props?.checksum
           // console.log(remoteContent)
-          const remoteHash = this.checksum.sha1(remoteContent);
+          const downloadedContent = new TextDecoder().decode(remoteContent);
+
+          const remoteHash = this.checksum.sha1(downloadedContent);
 
           console.log("Local  ", localHash);
           console.log("Prev   ", prevHash);
