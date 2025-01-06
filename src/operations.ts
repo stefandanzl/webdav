@@ -5,9 +5,7 @@ import { WebDAVClient } from "./webdav";
 import { join, dirname } from "./util";
 import { normalizePath } from "obsidian";
 
-const WEBDAV_HEADERS = {
-    "Cache-Control": "no-cache, no-store, must-revalidate"
-};
+const WEBDAV_HEADERS = { "Cache-Control": "no-cache, no-store, must-revalidate" };
 
 export class Operations {
     constructor(public plugin: Cloudr) {
@@ -25,38 +23,26 @@ export class Operations {
         return new WebDAVClient(url, {
             username,
             password,
-            headers: WEBDAV_HEADERS
+            headers: WEBDAV_HEADERS,
         });
     }
 
     /**
      * Download files from WebDAV server
      */
-    async downloadFiles(
-        webdavClient: WebDAVClient,
-        filesMap: Record<string, string>,
-        remoteBasePath: string
-    ): Promise<void> {
+    async downloadFiles(webdavClient: WebDAVClient, filesMap: Record<string, string>, remoteBasePath: string): Promise<void> {
         if (!filesMap || Object.keys(filesMap).length === 0) {
             console.log("No files to download");
             return;
         }
 
-        await Promise.all(
-            Object.entries(filesMap).map(([filePath, _]) => 
-                this.downloadFile(webdavClient, filePath, remoteBasePath)
-            )
-        );
+        await Promise.all(Object.entries(filesMap).map(([filePath, _]) => this.downloadFile(webdavClient, filePath, remoteBasePath)));
     }
 
     /**
      * Download a single file from WebDAV
      */
-    private async downloadFile(
-        webdavClient: WebDAVClient,
-        filePath: string,
-        remoteBasePath: string
-    ): Promise<void> {
+    private async downloadFile(webdavClient: WebDAVClient, filePath: string, remoteBasePath: string): Promise<void> {
         try {
             if (filePath.endsWith("/")) {
                 await this.ensureLocalDirectory(filePath);
@@ -64,7 +50,7 @@ export class Operations {
             }
 
             const remotePath = join(remoteBasePath, filePath);
-            
+
             // Verify remote file exists
             const remoteStats = await webdavClient.exists(remotePath);
             if (!remoteStats) {
@@ -77,8 +63,10 @@ export class Operations {
 
             // Download with retry
             const fileData = await this.downloadWithRetry(webdavClient, remotePath);
-            
-            await app.vault.adapter.writeBinary(filePath, fileData);
+            if (fileData.status !== 200) {
+              throw new Error(`Failed to download ${remotePath}: ${fileData.status}`);
+            }
+            await app.vault.adapter.writeBinary(filePath, fileData.data);
             this.plugin.processed();
             console.log(`Downloaded: ${remotePath}`);
         } catch (error) {
@@ -89,11 +77,7 @@ export class Operations {
     /**
      * Upload files to WebDAV server
      */
-    async uploadFiles(
-        webdavClient: WebDAVClient,
-        fileChecksums: object | undefined,
-        remoteBasePath: string
-    ): Promise<void> {
+    async uploadFiles(webdavClient: WebDAVClient, fileChecksums: object | undefined, remoteBasePath: string): Promise<void> {
         if (!fileChecksums || Object.keys(fileChecksums).length === 0) {
             console.log("No files to upload");
             return;
@@ -110,20 +94,14 @@ export class Operations {
     /**
      * Upload a single file to WebDAV
      */
-    private async uploadFile(
-        webdavClient: WebDAVClient,
-        localFilePath: string,
-        remoteBasePath: string
-    ): Promise<void> {
+    private async uploadFile(webdavClient: WebDAVClient, localFilePath: string, remoteBasePath: string): Promise<void> {
         try {
             if (localFilePath.endsWith("/")) {
                 await this.ensureRemoteDirectory(webdavClient, localFilePath, remoteBasePath);
                 return;
             }
 
-            const fileContent = await this.plugin.app.vault.adapter.read(
-                normalizePath(localFilePath)
-            );
+            const fileContent = await this.plugin.app.vault.adapter.read(normalizePath(localFilePath));
             const remoteFilePath = join(remoteBasePath, localFilePath);
 
             await webdavClient.put(remoteFilePath, fileContent);
@@ -137,11 +115,7 @@ export class Operations {
     /**
      * Delete files from WebDAV server
      */
-    async deleteFilesWebdav(
-        client: WebDAVClient,
-        basePath: string,
-        fileTree: object | undefined
-    ): Promise<void> {
+    async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: object | undefined): Promise<void> {
         if (!fileTree || Object.keys(fileTree).length === 0) {
             console.log("No files to delete on WebDAV");
             return;
@@ -155,9 +129,7 @@ export class Operations {
     /**
      * Delete files from local storage
      */
-    async deleteFilesLocal(
-        fileTree: object | undefined
-    ): Promise<void> {
+    async deleteFilesLocal(fileTree: object | undefined): Promise<void> {
         if (!fileTree || Object.keys(fileTree).length === 0) {
             console.log("No files to delete locally");
             return;
@@ -173,7 +145,10 @@ export class Operations {
         webdavClient: WebDAVClient,
         remotePath: string,
         maxRetries = 2
-    ): Promise<Buffer> {
+    ): Promise<{
+        data: ArrayBuffer;
+        status: number;
+    }> {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
                 // return await webdavClient.getFileContents(remotePath, {
@@ -183,7 +158,7 @@ export class Operations {
             } catch (error) {
                 if (attempt === maxRetries) throw error;
                 console.log(`Retry ${attempt} for ${remotePath}`);
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise((resolve) => setTimeout(resolve, 100));
             }
         }
         throw new Error(`Failed to download after ${maxRetries} attempts`);
@@ -197,26 +172,16 @@ export class Operations {
         }
     }
 
-    private async ensureRemoteDirectory(
-        webdavClient: WebDAVClient,
-        path: string,
-        basePath: string
-    ): Promise<void> {
+    private async ensureRemoteDirectory(webdavClient: WebDAVClient, path: string, basePath: string): Promise<void> {
         try {
             console.log(`Creating remote directory: ${path}`);
-            await webdavClient.createDirectory(
-                join(basePath, path.replace(/\/$/, ""))
-            );
+            await webdavClient.createDirectory(join(basePath, path.replace(/\/$/, "")));
         } catch (error) {
             console.error(`Error creating remote directory ${path}:`, error);
         }
     }
 
-    private async deleteWebDavFile(
-        webdavClient: WebDAVClient,
-        file: string,
-        basePath: string
-    ): Promise<void> {
+    private async deleteWebDavFile(webdavClient: WebDAVClient, file: string, basePath: string): Promise<void> {
         const path = file.endsWith("/") ? file.replace(/\/$/, "") : file;
         try {
             await this.deleteWithRetry(webdavClient, join(basePath, path));
@@ -227,19 +192,18 @@ export class Operations {
         }
     }
 
-    private async deleteWithRetry(
-        webdavClient: WebDAVClient,
-        path: string,
-        maxRetries = 2
-    ): Promise<void> {
+    private async deleteWithRetry(webdavClient: WebDAVClient, path: string, maxRetries = 2): Promise<void> {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                await webdavClient.deleteFile(path);
+                const response = await webdavClient.delete(path);
+                if (!response) {
+                  throw Error(`Failed to delete ${path}`);
+                }
                 return;
             } catch (error) {
                 if (attempt === maxRetries) throw error;
                 console.log(`Retry ${attempt} for deleting ${path}`);
-                await new Promise(resolve => setTimeout(resolve, 100));
+                await new Promise((resolve) => setTimeout(resolve, 100));
             }
         }
     }

@@ -1,94 +1,92 @@
 // tests/webdav.test.ts
-import { describe, test, expect, beforeAll, jest } from '@jest/globals';
-import { requestUrl } from 'obsidian';
-import { WebDAVClient } from '../src/webdav';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as dotenv from 'dotenv';
+import { describe, test, expect, beforeAll, jest } from "@jest/globals";
+import { requestUrl } from "obsidian";
+import { WebDAVClient } from "../src/webdav";
+import * as fs from "fs/promises";
+import * as path from "path";
+import * as dotenv from "dotenv";
 
-jest.mock('obsidian');
+jest.mock("obsidian");
 
-describe('Basic Web request tests', () => {
-    test('requestUrl function is called', async () => {
+describe("Basic Web request tests", () => {
+    test("requestUrl function is called", async () => {
         const response = await requestUrl("https://example-files.online-convert.com/document/txt/example.txt");
         // console.log(response);
         expect(response).toBeDefined();
     });
 });
 
-describe('WebDAV Integration Tests', () => {
+describe("WebDAV Integration Tests", () => {
     let client: WebDAVClient;
 
     beforeAll(() => {
         // Load environment variables
         dotenv.config();
-        
+
         // Verify required environment variables
-        const requiredEnvVars = ['WEBDAV_URL', 'WEBDAV_USER', 'WEBDAV_PASS'];
-        const missing = requiredEnvVars.filter(envVar => !process.env[envVar]);
-        
+        const requiredEnvVars = ["WEBDAV_URL", "WEBDAV_USER", "WEBDAV_PASS"];
+        const missing = requiredEnvVars.filter((envVar) => !process.env[envVar]);
+
         if (missing.length > 0) {
-            throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+            throw new Error(`Missing required environment variables: ${missing.join(", ")}`);
         }
 
         for (const envVar of requiredEnvVars) {
             if (process.env[envVar] == "") {
                 throw new Error(`Environment variable ${envVar} is empty`);
-        }
-    }
-    
-        // Create WebDAV client after verification
-        client = new WebDAVClient(
-            process.env.WEBDAV_URL as string,
-            {
-            username: process.env.WEBDAV_USER as string,
-            password: process.env.WEBDAV_PASS as string
             }
-        );
+        }
+
+        // Create WebDAV client after verification
+        client = new WebDAVClient(process.env.WEBDAV_URL as string, {
+            username: process.env.WEBDAV_USER as string,
+            password: process.env.WEBDAV_PASS as string,
+        });
     });
 
-    test('connects to WebDAV server', async () => {
-        const response = await client.propfind('/');
+    test("connects to WebDAV server", async () => {
+        const response = await client.propfind("/");
         expect(response.status).toBe(207); // MultiStatus response
     });
 
-    test('lists directory contents', async () => {
-        const response = await client.propfind('/');
-        console.log(response)
+    test("lists directory contents", async () => {
+        const response = await client.propfind("/");
+        console.log(response);
         expect(response.status).toBe(207);
 
-        
-        const resources = await client.list('/');
-        const paths = resources.map(r => r.href).sort();
+        const resources = await client.list("/");
+        const paths = resources.map((r) => r.href).sort();
         console.log(paths);
-    
-        expect(paths).toContain('/dav/');
+
+        expect(paths).toContain("/dav/");
     });
 
-    test('gets file properties', async () => {
-        const testFile = '/test.txt';
-        const response = await client.propfind(testFile, '0');
-        
+    test("gets file properties", async () => {
+        const testFile = "/test.txt";
+        const response = await client.propfind(testFile, "0");
+
         const properties = client.parseFileProps(response.text);
-        
+
         expect(response.status).toBe(207);
-        expect(response.text).toContain('getcontenttype>');
+        expect(response.text).toContain("getcontenttype>");
 
         // console.log(properties.checksum);
-        expect(properties.checksum).toBe('eb1d87f1000a2b26b333742e1a1e64fde659bc5e');
+        expect(properties.checksum).toBe("eb1d87f1000a2b26b333742e1a1e64fde659bc5e");
     });
 
-    test('downloads file and compares with local copy', async () => {
+    test("downloads file and compares with local copy", async () => {
         // First, read the local file
-        const localFilePath = path.join(__dirname, 'fixtures', 'test.txt');
-        const localContent = await fs.readFile(localFilePath, 'utf8');
+        const localFilePath = path.join(__dirname, "fixtures", "test.txt");
+        const localContent = await fs.readFile(localFilePath, "utf8");
 
         // Download the same file from WebDAV
-        const response = await client.get('/test.txt');
+        const response = await client.get("/test.txt");
         // expect(response.status).toBe(200);
-        
+
         // Compare contents
-        expect(response.toString()).toBe(localContent);
+        const responseText = new TextDecoder().decode(response.data);
+
+        expect(responseText).toBe(localContent);
     });
 
     // test('uploads and verifies file', async () => {
@@ -105,8 +103,8 @@ describe('WebDAV Integration Tests', () => {
     //     expect(downloadResponse.text).toBe(testContent);
     // });
 
-    test.only('uploads and verifies file', async () => {
-        const testContent = 'Test file content ' + Date.now();
+    test("uploads and verifies file", async () => {
+        const testContent = "Test file content " + Date.now();
         const testPath = `/test-upload-${Date.now()}.txt`;
 
         // Upload file
@@ -116,27 +114,25 @@ describe('WebDAV Integration Tests', () => {
         // Verify upload
         const downloadResponse = await client.get(testPath);
         // expect(downloadResponse.status).toBe(200);
-        const downloadedContent = new TextDecoder().decode(downloadResponse);
+        const downloadedContent = new TextDecoder().decode(downloadResponse.data);
         expect(downloadedContent).toBe(testContent);
     });
 
-    
-
-    test('deletes file and verifies deletion', async () => {
+    test.only("deletes file and verifies deletion", async () => {
         // First create a file to delete
         const testPath = `/test-delete-${Date.now()}.txt`;
-        await client.put(testPath, 'Test content');
-    
+        await client.put(testPath, "Test content");
+
         // Delete the file
         const deleteResponse = await client.delete(testPath);
-        expect(deleteResponse.status).toBe(204);
-    
+        expect(deleteResponse).toBe(true);
+
         // Verify file is gone by checking for 404 status
         const getResponse = await client.get(testPath);
         expect(getResponse).toBeUndefined();
     });
 
-    test('create directory and verify', async () => {
+    test("create directory and verify", async () => {
         const testPath = `/test-dir-${Date.now()}`;
         await client.mkcol(testPath);
 
@@ -148,64 +144,64 @@ describe('WebDAV Integration Tests', () => {
         await client.delete(testPath);
     });
 
-    test('checks if file exists', async () => {
+    test("checks if file exists", async () => {
         // First create a test file
         const testPath = `/test-exists-${Date.now()}.txt`;
-        await client.put(testPath, 'Test content');
-     
+        await client.put(testPath, "Test content");
+
         // Check it exists
         const exists = await client.exists(testPath);
         expect(exists).toBe(true);
-     
+
         // Check non-existent file
-        const nonExistentPath = '/this-file-does-not-exist.txt';
+        const nonExistentPath = "/this-file-does-not-exist.txt";
         const doesntExist = await client.exists(nonExistentPath);
         expect(doesntExist).toBe(false);
-     
+
         // Clean up
         await client.delete(testPath);
-     });
+    });
 
-
-     test('gets directory contents with correct structure', async () => {
-        const contents = await client.getDirectory('/');
-
-        console.log(contents);
+    test("gets directory contents with correct structure", async () => {
+        const contents = await client.getDirectory("/");
         
-        // Verify array structure
+        // Verify data is an array
         expect(Array.isArray(contents)).toBe(true);
         
-        // Check that we got some items
+        // Check we got some items
         expect(contents.length).toBeGreaterThan(0);
         
         // Test structure of first item
         const firstItem = contents[0];
         expect(firstItem).toMatchObject({
             basename: expect.any(String),
+            etag: expect.any(String) || null,
             filename: expect.stringContaining('/'),
             lastmod: expect.any(String),
+            mime: expect.any(String),
+            size: expect.any(Number),
             type: expect.stringMatching(/^(file|directory)$/),
             props: {
+                checksum: expect.any(String),
                 displayname: expect.any(String),
                 getlastmodified: expect.any(String),
-                supportedlock: {
-                    lockentry: {
-                        lockscope: { exclusive: expect.any(String) },
-                        locktype: { write: expect.any(String) }
-                    }
-                }
+                resourcetype: expect.anything(),  // Can be '' or [Object]
+                supportedlock: expect.any(Object)
             }
         });
     
-        // Test for a specific known file
+        // Test for a file
         const testFile = contents.find(item => item.basename === 'test.txt');
         expect(testFile).toBeDefined();
         if (testFile) {
             expect(testFile).toMatchObject({
                 type: 'file',
+                size: 6,
                 props: {
                     getcontentlength: 6,
-                    checksum: expect.any(String)
+                    checksum: expect.any(String),
+                    getetag: expect.stringMatching(/^".*"$/),
+                    checksums: expect.any(Object)
                 }
             });
         }
@@ -214,34 +210,32 @@ describe('WebDAV Integration Tests', () => {
         const directory = contents.find(item => item.type === 'directory');
         expect(directory).toBeDefined();
         if (directory) {
-            expect(directory.props.resourcetype).toMatchObject({
-                collection: expect.any(String)
+            expect(directory).toMatchObject({
+                size: 0,
+                props: {
+                    resourcetype: expect.any(Object),
+                    checksum: ''
+                }
             });
         }
-    
-        // Log one item for inspection
-        console.log('Sample directory item:', JSON.stringify(contents[0], null, 2));
     });
 
-    test('gets directory contents with correct path structure', async () => {
-        const contents = await client.getDirectory('/');
+    test("gets directory contents with correct path structure", async () => {
+        const contents = await client.getDirectory("/");
 
-        console.log(contents)
-        
+        console.log(contents);
+
         // Verify paths don't include base WebDAV directory
         for (const item of contents) {
-            expect(item.filename).not.toContain('/dav/');
-            expect(item.filename.startsWith('/')).toBe(true);
+            expect(item.filename).not.toContain("/dav/");
+            expect(item.filename.startsWith("/")).toBe(true);
         }
-    
+
         // Test specific file path
-        const testFile = contents.find(item => item.basename === 'test.txt');
+        const testFile = contents.find((item) => item.basename === "test.txt");
         expect(testFile).toBeDefined();
         if (testFile) {
-            expect(testFile.filename).toBe('/test.txt');  // Not '/dav/test.txt'
+            expect(testFile.filename).toBe("/test.txt"); // Not '/dav/test.txt'
         }
     });
-
-
-
 });
