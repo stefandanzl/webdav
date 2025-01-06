@@ -1,6 +1,7 @@
 // @ts-nocheck
 import Cloudr from "./main";
-import { WebDAVClient, createClient } from "webdav";
+// import { WebDAVClient, createClient } from "webdav";
+import { WebDAVClient } from "./webdav";
 import { join, dirname } from "./util";
 import { normalizePath } from "obsidian";
 
@@ -21,7 +22,7 @@ export class Operations {
             throw new Error("Missing WebDAV configuration parameters");
         }
 
-        return createClient(url, {
+        new WebDAVClient(url, {
             username,
             password,
             headers: WEBDAV_HEADERS

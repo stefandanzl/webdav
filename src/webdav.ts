@@ -11,6 +11,8 @@ export interface WebDAVResource {
     contentType?: string;
 }
 
+
+
 export type MethodOptions = {
     data: string | ArrayBuffer;
     headers: string;
@@ -22,7 +24,7 @@ export class WebDAVClient {
     private username: string;
     private password: string;
 
-    constructor(baseUrl: string, options: { username: string, password: string, headers: string}) {
+    constructor(baseUrl: string, options: { username: string, password: string, headers?: string}) {
         this.baseUrl = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
         this.username = options.username;
         this.password = options.password;
@@ -51,8 +53,7 @@ export class WebDAVClient {
         };
     }
 
-    async getFileContents(path: string, format?: "text" | "binary"): Promise<RequestUrlResponse> {
-        format = format || 'text';
+    async get(path: string): Promise<RequestUrlResponse> {
         return await requestUrl({
             url: this.createFullUrl(path),
             method: 'GET',
@@ -62,7 +63,15 @@ export class WebDAVClient {
         });
     }
 
-    async propfind(path: string, depth?: '0' | 'infinity' = '1'): Promise<RequestUrlResponse> {
+    /**
+     * The Depth header is used with methods executed on resources which could potentially have internal members to indicate whether 
+     * the method is to be applied only to the resource ("Depth: 0"), to the resource and its immediate children, ("Depth: 1"), or 
+     * the resource and all its progeny ("Depth: infinity").
+     * @param path 
+     * @param depth 
+     * @returns 
+     */
+    async propfind(path: string, depth?: '0' | '1' | 'infinity' = '1'): Promise<RequestUrlResponse> {
         return await requestUrl({
             url: this.createFullUrl(path),
             method: 'PROPFIND',
@@ -76,6 +85,19 @@ export class WebDAVClient {
                     <allprop/>
                 </propfind>`
         });
+    }
+
+    async exists(path: string): Promise<boolean> {
+        try {
+            // Use propfind with depth 0 since we only want to check existence
+            const response = await this.propfind(path, '0');
+            return response.status === 207; // 207 Multi-Status means it exists
+        } catch (error) {
+            if (error.status === 404) {
+                return false;
+            }
+            throw error; // Rethrow other errors
+        }
     }
 
 
@@ -177,5 +199,76 @@ export class WebDAVClient {
         }
 
         return resources;
+    }
+
+
+
+    
+    async getDirectoryContents(path: string = '/', depth: "0" | "1" | "infinity" = "1"): Promise<WebDAVDirectoryItem[]> {
+
+        const response = await this.propfind(path, depth);
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(response.text, 'text/xml');
+        const responses = doc.getElementsByTagNameNS('DAV:', 'response');
+        const items: WebDAVDirectoryItem[] = [];
+    
+        for (let i = 0; i < responses.length; i++) {
+            const response = responses[i];
+            const prop = response.getElementsByTagNameNS('DAV:', 'prop')[0];
+            
+            const href = response.getElementsByTagNameNS('DAV:', 'href')[0]?.textContent || '';
+            const resourcetype = prop.getElementsByTagNameNS('DAV:', 'resourcetype')[0];
+            const isCollection = resourcetype?.getElementsByTagNameNS('DAV:', 'collection').length > 0;
+    
+            const item: WebDAVDirectoryItem = {
+                basename: href.split('/').filter(Boolean).pop() || '',
+                etag: prop.getElementsByTagNameNS('DAV:', 'getetag')[0]?.textContent?.replace(/"/g, '') || null,
+                filename: href,
+                lastmod: prop.getElementsByTagNameNS('DAV:', 'getlastmodified')[0]?.textContent || '',
+                mime: prop.getElementsByTagNameNS('DAV:', 'getcontenttype')[0]?.textContent || '',
+                props: {
+                    checksum: prop.getElementsByTagNameNS('DAV:', 'checksum')[0]?.textContent || '',
+                    displayname: prop.getElementsByTagNameNS('DAV:', 'displayname')[0]?.textContent || '',
+                    getlastmodified: prop.getElementsByTagNameNS('DAV:', 'getlastmodified')[0]?.textContent || '',
+                    resourcetype: isCollection ? { collection: '' } : '',
+                    supportedlock: {
+                        lockentry: {
+                            lockscope: { exclusive: '' },
+                            locktype: { write: '' }
+                        }
+                    }
+                },
+                size: parseInt(prop.getElementsByTagNameNS('DAV:', 'getcontentlength')[0]?.textContent || '0', 10),
+                type: isCollection ? 'directory' : 'file'
+            };
+    
+            // Add optional properties
+            const contentLength = prop.getElementsByTagNameNS('DAV:', 'getcontentlength')[0]?.textContent;
+            if (contentLength) {
+                item.props.getcontentlength = parseInt(contentLength, 10);
+            }
+    
+            const contentType = prop.getElementsByTagNameNS('DAV:', 'getcontenttype')[0]?.textContent;
+            if (contentType) {
+                item.props.getcontenttype = contentType;
+            }
+    
+            const etag = prop.getElementsByTagNameNS('DAV:', 'getetag')[0]?.textContent;
+            if (etag) {
+                item.props.getetag = etag;
+            }
+    
+            // Add checksums object if it exists
+            const checksums = prop.getElementsByTagNameNS('http://owncloud.org/ns', 'checksums')[0];
+            if (checksums) {
+                item.props.checksums = {
+                    checksum: checksums.getElementsByTagNameNS('http://owncloud.org/ns', 'checksum')[0]?.textContent || ''
+                };
+            }
+    
+            items.push(item);
+        }
+    
+        return items;
     }
 }

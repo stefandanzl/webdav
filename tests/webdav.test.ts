@@ -11,7 +11,7 @@ jest.mock('obsidian');
 describe('Basic Web request tests', () => {
     test('requestUrl function is called', async () => {
         const response = await requestUrl("https://example-files.online-convert.com/document/txt/example.txt");
-        console.log(response);
+        // console.log(response);
         expect(response).toBeDefined();
     });
 });
@@ -30,12 +30,20 @@ describe('WebDAV Integration Tests', () => {
         if (missing.length > 0) {
             throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
         }
+
+        for (const envVar of requiredEnvVars) {
+            if (process.env[envVar] == "") {
+                throw new Error(`Environment variable ${envVar} is empty`);
+        }
+    }
     
         // Create WebDAV client after verification
         client = new WebDAVClient(
-            process.env.WEBDAV_URL!,
-            process.env.WEBDAV_USER!,
-            process.env.WEBDAV_PASS!
+            process.env.WEBDAV_URL as string,
+            {
+            username: process.env.WEBDAV_USER as string,
+            password: process.env.WEBDAV_PASS as string
+            }
         );
     });
 
@@ -46,10 +54,13 @@ describe('WebDAV Integration Tests', () => {
 
     test('lists directory contents', async () => {
         const response = await client.propfind('/');
+        console.log(response)
         expect(response.status).toBe(207);
+
         
         const resources = await client.list('/');
         const paths = resources.map(r => r.href).sort();
+        console.log(paths);
     
         expect(paths).toContain('/dav/');
     });
@@ -63,7 +74,7 @@ describe('WebDAV Integration Tests', () => {
         expect(response.status).toBe(207);
         expect(response.text).toContain('getcontenttype>');
 
-        console.log(properties.checksum);
+        // console.log(properties.checksum);
         expect(properties.checksum).toBe('eb1d87f1000a2b26b333742e1a1e64fde659bc5e');
     });
 
@@ -119,4 +130,101 @@ describe('WebDAV Integration Tests', () => {
         // Clean up by deleting the directory
         await client.delete(testPath);
     });
+
+    test('checks if file exists', async () => {
+        // First create a test file
+        const testPath = `/test-exists-${Date.now()}.txt`;
+        await client.put(testPath, 'Test content');
+     
+        // Check it exists
+        const exists = await client.exists(testPath);
+        expect(exists).toBe(true);
+     
+        // Check non-existent file
+        const nonExistentPath = '/this-file-does-not-exist.txt';
+        const doesntExist = await client.exists(nonExistentPath);
+        expect(doesntExist).toBe(false);
+     
+        // Clean up
+        await client.delete(testPath);
+     });
+
+
+     test('gets directory contents with correct structure', async () => {
+        const contents = await client.getDirectoryContents('/');
+
+        console.log(contents);
+        
+        // Verify array structure
+        expect(Array.isArray(contents)).toBe(true);
+        
+        // Check that we got some items
+        expect(contents.length).toBeGreaterThan(0);
+        
+        // Test structure of first item
+        const firstItem = contents[0];
+        expect(firstItem).toMatchObject({
+            basename: expect.any(String),
+            filename: expect.stringContaining('/'),
+            lastmod: expect.any(String),
+            type: expect.stringMatching(/^(file|directory)$/),
+            props: {
+                displayname: expect.any(String),
+                getlastmodified: expect.any(String),
+                supportedlock: {
+                    lockentry: {
+                        lockscope: { exclusive: expect.any(String) },
+                        locktype: { write: expect.any(String) }
+                    }
+                }
+            }
+        });
+    
+        // Test for a specific known file
+        const testFile = contents.find(item => item.basename === 'test.txt');
+        expect(testFile).toBeDefined();
+        if (testFile) {
+            expect(testFile).toMatchObject({
+                type: 'file',
+                props: {
+                    getcontentlength: 6,
+                    checksum: expect.any(String)
+                }
+            });
+        }
+    
+        // Test for a directory
+        const directory = contents.find(item => item.type === 'directory');
+        expect(directory).toBeDefined();
+        if (directory) {
+            expect(directory.props.resourcetype).toMatchObject({
+                collection: expect.any(String)
+            });
+        }
+    
+        // Log one item for inspection
+        console.log('Sample directory item:', JSON.stringify(contents[0], null, 2));
+    });
+
+    test.only('gets directory contents with correct path structure', async () => {
+        const contents = await client.getDirectoryContents('/');
+
+        console.log(contents)
+        
+        // Verify paths don't include base WebDAV directory
+        for (const item of contents) {
+            expect(item.filename).not.toContain('/dav/');
+            expect(item.filename.startsWith('/')).toBe(true);
+        }
+    
+        // Test specific file path
+        const testFile = contents.find(item => item.basename === 'test.txt');
+        expect(testFile).toBeDefined();
+        if (testFile) {
+            expect(testFile.filename).toBe('/test.txt');  // Not '/dav/test.txt'
+        }
+    });
+
+
+
 });

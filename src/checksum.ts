@@ -1,5 +1,5 @@
 // @ts-nocheck
-import { WebDAVClient } from "webdav";
+import { WebDAVClient } from "./webdav";
 
 import Cloudr from "./main";
 import {
@@ -366,17 +366,17 @@ export class Checksum {
 
   // Fetch directory contents from webdav
   generateWebdavHashTree = async (
-    client: WebDAVClient,
+    webdavClient: WebDAVClient,
     rootFolder,
     exclusions = {}
   ) => {
     try {
-      const exists = await client.exists(rootFolder);
+      const exists = await webdavClient.exists(rootFolder);
       if (exists) {
         // console.log("DOES EXIST")
       } else {
         console.log("DOES NOT EXIST");
-        await client.createDirectory(rootFolder);
+        await webdavClient.createDirectory(rootFolder);
       }
     } catch (error) {
       console.error("ERROR: generateWebdavHashTree", error);
@@ -387,7 +387,8 @@ export class Checksum {
     // exclusions.directories.push("node_modules", ".git", "plugins/remotely-sync", "remotely-sync/src", "obsidian-cloudr");
 
     try {
-      const contents = await client.getDirectoryContents(rootFolder, {
+      // Get directory contents - deep true, details true
+      const contents = await webdavClient.getDirectoryContents(rootFolder, {
         deep: true,
         details: true,
       }); //details: true

@@ -10,7 +10,8 @@ import {
 } from "obsidian";
 
 // import { readdirSync } from 'fs';
-import { WebDAVClient } from "webdav";
+// import { WebDAVClient } from "webdav";
+import { WebDAVClient } from "./webdav";
 import {
   CloudrSettings,
   DEFAULT_SETTINGS,
@@ -476,7 +477,7 @@ export default class Cloudr extends Plugin {
           const hash = this.checksum.sha1(data);
 
           const remoteFilePath = join(this.baseWebdav, filePath);
-          await this.webdavClient.putFileContents(remoteFilePath, data);
+          await this.webdavClient.put(remoteFilePath, data);
 
           // @ts-ignore
           this.prevData.files[filePath] = hash;
@@ -587,10 +588,10 @@ export default class Cloudr extends Plugin {
        
 
         // const res = await this.webdavClient.stat(remoteFilePath, {details: true})
-        const remoteContent = (await this.webdavClient.getFileContents(
+        const remoteContent = (await this.webdavClient.get(
           remoteFilePath,
           { format: "text" }
-        )) as string;
+        )) as unknown as string;
         if (remoteContent !== null && remoteContent !== undefined) {
           // console.log(res);
           //     //@ts-ignore
@@ -727,9 +728,8 @@ export default class Cloudr extends Plugin {
       this.setStatus("🧪");
       this.show("🧪 Testing ...");
 
-      const directoryContents = await this.webdavClient.getDirectoryContents(
-        this.settings.webdavPath
-      );
+      // Get the contents of the root directory
+      const directoryContents = await this.webdavClient.propfind(this.settings.webdavPath, "1");
 
       // Filter out only directories
       // @ts-ignore
@@ -779,8 +779,9 @@ export default class Cloudr extends Plugin {
       this.show("🔎 Checking ...");
 
       try {
-        const dir = await this.webdavClient.getDirectoryContents(
-          this.settings.webdavPath
+        // Get Directory Contents
+        const dir = await this.webdavClient.propfind(
+          this.settings.webdavPath, "0"
         );
 
         if (dir) {

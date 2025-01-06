@@ -24,3 +24,5 @@ data.json
 .env
 
 prevdata.json
+
+tests/exclude

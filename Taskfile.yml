@@ -5,6 +5,9 @@ version: '3'
 vars:
   DIR_PLUGIN: C:\PROJECTS\Obsidian\dev7\.obsidian\plugins\webdav
 
+  #USER_WORKING_DIR: C:\PROJECTS\Obsidian\dev7
+  ENV_FILE: .env
+
 tasks:
   default:
     cmds:
@@ -27,3 +30,6 @@ tasks:
   test:
     cmds:
       - npm test -env-file .env
+  research:
+    cmds:
+      - node tests/exclude/research.js
