@@ -7,6 +7,12 @@ import {
 } from "obsidian";
 import Cloudr from "./main";
 
+export type Exclusions = {
+  directories: string[];
+  extensions: string[];
+  markers: string[];
+};      
+
 export interface CloudrSettings {
     // mySetting: string;
     // Connection
@@ -15,11 +21,7 @@ export interface CloudrSettings {
     password: string;
     webdavPath: string;
     overrideVault: string;
-    exclusions: {
-        directories: string[];
-        extensions: string[];
-        markers: string[];
-    };
+    exclusions: Exclusions;
     exclusionsOverride: boolean;
     launchSync: boolean;
 

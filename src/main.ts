@@ -68,211 +68,7 @@ export default class Cloudr extends Plugin {
     testVal: boolean;
     // showLoading: boolean;
 
-    async onload() {
-        await this.loadSettings();
-
-        // This adds a settings tab so the user can configure various aspects of the plugin
-        this.addSettingTab(new CloudrSettingsTab(this.app, this));
-
-        this.compare = new Compare(this);
-        this.checksum = new Checksum(this);
-        this.operations = new Operations(this);
-
-        this.mobile = Platform.isMobileApp;
-
-        this.connectionError = false;
-
-        this.skipLaunchSync = false;
-        this.testVal = false;
-
-        if (this.settings.launchSync) {
-            document.addEventListener("keydown", this.checkKeylaunchSync, {
-                once: true,
-            });
-        }
-        // // this.checkHidden = !this.mobile;
-        // this.checkHidden = true;
-        // console.log("MOBILE: ",this.mobile,"\ncheckHidden",this.checkHidden)
-
-        // const adapter = this.app.vault.adapter;
-        // if (adapter instanceof FileSystemAdapter) {
-        //     this.baseLocal = adapter.getBasePath().replace(/\\/g, '/') + "/";
-        //     // console.log("Base local: ", this.baseLocal)
-
-        // } else { console.log("ERROR Localpath") }
-        this.settings.exclusionsOverride = false;
-
-        this.setBaseWebdav();
-
-        this.prevPath = `${this.app.vault.configDir}/plugins/webdav/prevdata.json`;
-        // console.log(this.prevPath)
-
-        if (this.settings.enableRibbons) {
-            this.addRibbonIcon("upload-cloud", "PUSH to Webdav", () => {
-                this.push();
-            });
-
-            this.addRibbonIcon("download-cloud", "PULL from Webdav", () => {
-                this.pull();
-            });
-        }
-
-        this.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
-            this.fullSync();
-        });
-
-        this.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
-            this.displayModal();
-        });
-
-        try {
-            this.prevData = JSON.parse(await this.app.vault.adapter.read(this.prevPath));
-            // prevData.date = new Date(prevData.date)
-            // this.prevData = prevData
-
-            console.log("PREVDATA LOADED: ", this.prevData);
-        } catch {
-            this.prevData = {
-                error: true,
-                files: {},
-            };
-
-            this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2));
-            console.error("ERROR LOADING PREVIOUS DATA! RESET prev.json to {error: true, files: {}} ");
-        }
-
-        // This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-
-        this.statusBar = this.addStatusBarItem();
-        // this.statusBar = statusBar.createEl(
-        //     "div",{ text: 'WEBDAV', cls: 'status-bar-item mod-clickable' }
-        // );
-
-        // // Create the first div
-        // this.statusBar1 = this.statusBar.createDiv();
-        // this.statusBar1.setText('First Div');
-        // this.statusBar1.style.marginRight = '10px'; // Adjust the margin as needed
-
-        // // Create the second div
-        // this.statusBar2 = this.statusBar.createDiv();
-        this.statusBar2 = this.addStatusBarItem();
-        this.statusBar2.setText("");
-
-        this.loadingTotal = -1;
-
-        // Optional: Apply additional styling if needed
-        this.statusBar.style.display = "flex"; // Make the status bar a flex container
-
-        this.statusBar.style.width = "25px";
-        this.statusBar.style.color = "green";
-
-        this.statusBar.classList.add("status-bar-item");
-        this.statusBar.classList.add("mod-clickable");
-
-        // this.statusBar.setText('OFF');
-        this.statusBar.addEventListener("click", () => {
-            if (this.app.lastEvent && this.app.lastEvent.ctrlKey) {
-                console.log("TTTTTTTTTTTTTTTTT");
-            } else {
-                this.displayModal();
-            }
-        });
-
-        this.addCommand({
-            id: "display-modal",
-            name: "Display modal",
-            callback: async () => {
-                this.displayModal();
-            },
-        });
-
-        this.addCommand({
-            id: "push",
-            name: "Force PUSH all File changes",
-            callback: async () => {
-                this.push();
-            },
-        });
-
-        this.addCommand({
-            id: "pull",
-            name: "Force PULL all File changes",
-            callback: async () => {
-                this.pull();
-            },
-        });
-
-        this.addCommand({
-            id: "webdav-fullsync",
-            name: "Full Sync",
-            callback: async () => {
-                this.fullSync();
-            },
-        });
-
-        this.addCommand({
-            id: "save-prev",
-            name: "Save State",
-            callback: async () => {
-                this.saveState();
-            },
-        });
-
-        this.addCommand({
-            id: "reset-error",
-            name: "Reset Error state",
-            callback: async () => {
-                // this.prevData.error= false
-                this.setError(false);
-            },
-        });
-
-        this.addCommand({
-            id: "delete-local",
-            name: "Delete pending local files",
-            callback: () => {
-                this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted);
-            },
-        });
-
-        this.addCommand({
-            id: "delete-webdav",
-            name: "Delete pending webdav files",
-            callback: () => {
-                this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted);
-            },
-        });
-
-        this.addCommand({
-            id: "toggle-pause-all",
-            name: "Toggle Pause for all activities",
-            callback: () => {
-                this.togglePause();
-            },
-        });
-
-        this.setStatus("");
-        this.setClient();
-
-        if (this.settings.liveSync) {
-            this.setLiveSync();
-        }
-
-        if (this.settings.autoSync) {
-            this.setAutoSync();
-        }
-
-        if (this.settings.openPull) {
-            this.setOpenPull();
-        }
-
-        if (this.settings.launchSync) {
-            this.app.workspace.onLayoutReady(() => {
-                this.testVal = true;
-                this.launchSyncCallback();
-            });
-        }
-    }
+   
 
     checkKeylaunchSync(ev: KeyboardEvent) {
         if (ev.altKey) {
@@ -428,7 +224,7 @@ export default class Cloudr extends Plugin {
                     const remoteFilePath = join(this.baseWebdav, filePath);
                     await this.webdavClient.put(remoteFilePath, data);
 
-                    // @ts-ignore
+                   
                     this.prevData.files[filePath] = hash;
                     // await sleep(1000)
                     // this.prevDataSaveTimeoutId = setTimeout(() => {
@@ -595,7 +391,7 @@ export default class Cloudr extends Plugin {
 
                 // console.log("\nDuration: ",after - before)
 
-                // @ts-ignore
+                
                 // this.prevData.files[filePath] = remoteChks;
                 // await sleep(1000)
 
@@ -703,7 +499,7 @@ export default class Cloudr extends Plugin {
 
                 const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
 
-                const localPromise = this.checksum.generateLocalHashTree();
+                const localPromise = this.checksum.generateLocalHashTree(true);
 
                 // Use Promise.all to execute both promises simultaneously
                 const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
@@ -1080,21 +876,8 @@ export default class Cloudr extends Plugin {
         if (!this.status || this.force === action) {
             this.setStatus("💾");
             try {
-                // let files
-
-                // if (check){
-                //     const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-                //     const localPromise = this.checksum.generateLocalHashTree();
-
-                //     // Use Promise.all to execute both promises simultaneously
-                //     const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
-                //     const comparedFileTrees = await this.compare.compareFileTrees(webdavFiles, localFiles, this.prevData, this.settings.exclusions)
-                //     this.fileTrees = comparedFileTrees;
-                //     this.prevData.files = localFiles;
-                //     console.log(localFiles)
-                // } else {
-                this.prevData.files = await this.checksum.generatePrevHashTree();
-                // }
+       
+                this.prevData.files = await this.checksum.generateLocalHashTree(false);
 
                 console.log("SwagggG", this.prevData.files);
                 this.prevData = {

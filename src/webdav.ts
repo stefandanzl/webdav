@@ -16,7 +16,22 @@ export type MethodOptions = {
     headers: string;
 };
 
-export type WebDAVDirectoryItem = Record<string, string | unknown>
+export type WebDAVDirectoryItem = {
+    basename: string;
+    etag: string;
+    filename: string;
+    lastmod: string;
+    mime: string;
+    props: {
+        checksum: string;
+        displayname: string;
+        getlastmodified: string;
+        resourcetype: string;
+    },
+    size: number;
+    type: "directory" | "file";
+};
+
 
 export class WebDAVClient {
     private baseUrl: string;
@@ -175,10 +190,7 @@ export class WebDAVClient {
         return response.status === 201;
     }
 
-    async list(path: string = "/"): Promise<WebDAVResource[]> {
-        const response = await this.propfind(path, "1");
-        return this.parseWebDAVList(response.text);
-    }
+
 
    
 
@@ -227,12 +239,12 @@ export class WebDAVClient {
                     displayname: prop.getElementsByTagNameNS("DAV:", "displayname")[0]?.textContent || "",
                     getlastmodified: prop.getElementsByTagNameNS("DAV:", "getlastmodified")[0]?.textContent || "",
                     resourcetype: isCollection ? { collection: "" } : "",
-                    supportedlock: {
-                        lockentry: {
-                            lockscope: { exclusive: "" },
-                            locktype: { write: "" },
-                        },
-                    },
+                    // supportedlock: {
+                    //     lockentry: {
+                    //         lockscope: { exclusive: "" },
+                    //         locktype: { write: "" },
+                    //     },
+                    // },
                 },
                 size: parseInt(prop.getElementsByTagNameNS("DAV:", "getcontentlength")[0]?.textContent || "0", 10),
                 type: isCollection ? "directory" : "file",

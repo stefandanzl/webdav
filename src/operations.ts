@@ -64,7 +64,7 @@ export class Operations {
             // Download with retry
             const fileData = await this.downloadWithRetry(webdavClient, remotePath);
             if (fileData.status !== 200) {
-              throw new Error(`Failed to download ${remotePath}: ${fileData.status}`);
+                throw new Error(`Failed to download ${remotePath}: ${fileData.status}`);
             }
             await app.vault.adapter.writeBinary(filePath, fileData.data);
             this.plugin.processed();
@@ -77,7 +77,7 @@ export class Operations {
     /**
      * Upload files to WebDAV server
      */
-    async uploadFiles(webdavClient: WebDAVClient, fileChecksums: object | undefined, remoteBasePath: string): Promise<void> {
+    async uploadFiles(webdavClient: WebDAVClient, fileChecksums: Record<string, string>, remoteBasePath: string): Promise<void> {
         if (!fileChecksums || Object.keys(fileChecksums).length === 0) {
             console.log("No files to upload");
             return;
@@ -101,7 +101,7 @@ export class Operations {
                 return;
             }
 
-            const fileContent = await this.plugin.app.vault.adapter.read(normalizePath(localFilePath));
+            const fileContent = await this.plugin.app.vault.adapter.readBinary(normalizePath(localFilePath));
             const remoteFilePath = join(remoteBasePath, localFilePath);
 
             await webdavClient.put(remoteFilePath, fileContent);
@@ -115,21 +115,51 @@ export class Operations {
     /**
      * Delete files from WebDAV server
      */
-    async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: object | undefined): Promise<void> {
+    async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: Record<string, string>): Promise<void> {
         if (!fileTree || Object.keys(fileTree).length === 0) {
             console.log("No files to delete on WebDAV");
             return;
         }
 
-        for (const file of Object.keys(fileTree)) {
-            await this.deleteWebDavFile(client, file, basePath);
-        }
+        const deleteFile = async (path: string): Promise<void> => {
+            const cleanPath = path.endsWith("/") ? path.replace(/\/$/, "") : path;
+            const fullPath = join(basePath, cleanPath);
+
+            // Skip if file doesn't exist
+
+            for (let attempt = 1; attempt <= 2; attempt++) {
+                try {
+                    const response = await client.delete(fullPath);
+                    if (!response) {
+                        if (!(await client.exists(fullPath))) {
+                            console.log(`File already deleted or doesn't exist: ${cleanPath}`);
+                            this.plugin.processed();
+                            return;
+                        } else {
+                            throw new Error(`Delete operation failed for ${cleanPath}`);
+                        }
+                    }
+                    console.log(`Deleted from WebDAV: ${cleanPath}`);
+                    this.plugin.processed();
+                    return;
+                } catch (error) {
+                    if (attempt === maxRetries) {
+                        console.error(`Failed to delete ${cleanPath} after ${maxRetries} attempts:`, error);
+                        return;
+                    }
+                    console.log(`Retry ${attempt}/${maxRetries} for deleting ${cleanPath}`);
+                    await new Promise((resolve) => setTimeout(resolve, 100 * attempt)); // Exponential backoff
+                }
+            }
+        };
+
+        await Promise.all(Object.keys(fileTree).map(deleteFile));
     }
 
     /**
      * Delete files from local storage
      */
-    async deleteFilesLocal(fileTree: object | undefined): Promise<void> {
+    async deleteFilesLocal(fileTree: Record<string, string>): Promise<void> {
         if (!fileTree || Object.keys(fileTree).length === 0) {
             console.log("No files to delete locally");
             return;
@@ -175,36 +205,12 @@ export class Operations {
     private async ensureRemoteDirectory(webdavClient: WebDAVClient, path: string, basePath: string): Promise<void> {
         try {
             console.log(`Creating remote directory: ${path}`);
-            await webdavClient.createDirectory(join(basePath, path.replace(/\/$/, "")));
+            const response = await webdavClient.createDirectory(join(basePath, path.replace(/\/$/, "")));
+            if (!response) {
+                throw new Error(`Failed to create remote directory ${path}`);
+            }
         } catch (error) {
             console.error(`Error creating remote directory ${path}:`, error);
-        }
-    }
-
-    private async deleteWebDavFile(webdavClient: WebDAVClient, file: string, basePath: string): Promise<void> {
-        const path = file.endsWith("/") ? file.replace(/\/$/, "") : file;
-        try {
-            await this.deleteWithRetry(webdavClient, join(basePath, path));
-            this.plugin.processed();
-            console.log(`Deleted from WebDAV: ${path}`);
-        } catch (error) {
-            console.error(`Failed to delete ${path} from WebDAV:`, error);
-        }
-    }
-
-    private async deleteWithRetry(webdavClient: WebDAVClient, path: string, maxRetries = 2): Promise<void> {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                const response = await webdavClient.delete(path);
-                if (!response) {
-                  throw Error(`Failed to delete ${path}`);
-                }
-                return;
-            } catch (error) {
-                if (attempt === maxRetries) throw error;
-                console.log(`Retry ${attempt} for deleting ${path}`);
-                await new Promise((resolve) => setTimeout(resolve, 100));
-            }
         }
     }
 
