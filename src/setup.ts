@@ -38,16 +38,47 @@ import { Platform } from "obsidian";
 
         if (plugin.settings.enableRibbons) {
             plugin.addRibbonIcon("upload-cloud", "PUSH to Webdav", () => {
-                plugin.push();
+                plugin.operations.sync({
+                    local: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                        except: 1
+                    },
+                    webdav: {
+                    }
+                });
             });
 
             plugin.addRibbonIcon("download-cloud", "PULL from Webdav", () => {
-                plugin.pull();
+                plugin.operations.sync({
+                    local: {    
+                    },
+                    webdav: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                        except: 1
+                    }
+                });
             });
         }
 
         plugin.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
-            plugin.fullSync();
+            plugin.operations.sync({
+                local: {
+                    added: 1,
+                    deleted: 1,
+                    modified: 1,
+
+                },
+                webdav: {
+                    added: 1,
+                    deleted: 1,
+                    modified: 1,
+
+                }
+            });
         });
 
         plugin.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
@@ -67,7 +98,8 @@ import { Platform } from "obsidian";
             };
 
             plugin.app.vault.adapter.write(plugin.prevPath, JSON.stringify(plugin.prevData, null, 2));
-            console.error("ERROR LOADING PREVIOUS DATA! RESET prev.json to {error: true, files: {}} ");
+            console.error("ERROR LOADING PREVIOUS DATA! RESET prevdata.json to {error: true, files: {}} ");
+            plugin.show("Failed to read previous data\nThis is to be expected if the plugin is new")
         }
 
         // plugin adds a status bar item to the bottom of the app. Does not work on mobile apps.
@@ -109,7 +141,16 @@ import { Platform } from "obsidian";
             id: "push",
             name: "Force PUSH all File changes",
             callback: async () => {
-                plugin.push();
+                plugin.operations.sync({
+                    local: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                        except: 1
+                    },
+                    webdav: {
+                    }
+                });
             },
         });
 
@@ -117,7 +158,16 @@ import { Platform } from "obsidian";
             id: "pull",
             name: "Force PULL all File changes",
             callback: async () => {
-                plugin.pull();
+                plugin.operations.sync({
+                    local: {
+                    },
+                    webdav: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                        except: 1
+                    }
+                });
             },
         });
 
@@ -125,7 +175,18 @@ import { Platform } from "obsidian";
             id: "webdav-fullsync",
             name: "Full Sync",
             callback: async () => {
-                plugin.fullSync();
+                plugin.operations.sync({
+                    local: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                    },
+                    webdav: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                    }
+                });
             },
         });
 

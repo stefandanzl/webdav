@@ -1,17 +1,34 @@
-import { TFile, TAbstractFile, Notice, Plugin, Platform } from "obsidian";
+import { TFile, TAbstractFile, Notice, Plugin } from "obsidian";
 import { WebDAVClient } from "./webdav";
-import { CloudrSettings, DEFAULT_SETTINGS, CloudrSettingsTab } from "./settings";
+import { CloudrSettings, DEFAULT_SETTINGS } from "./settings";
 import { FileTreeModal } from "./modal";
 import { Checksum } from "./checksum";
 import { Compare } from "./compare";
 import { Operations } from "./operations";
 import { join, emptyObj, sha1 } from "./util";
+import { launcher } from "./setup";
 
 export type FileTree = {
-  added: Record<string, string>;
-  deleted: Record<string, string>;
-  modified: Record<string, string>;
-  except: Record<string, string>;
+    added: Record<string, string>;
+    deleted: Record<string, string>;
+    modified: Record<string, string>;
+    except: Record<string, string>;
+};
+
+// This is used to build custom functionality with the sync function like inverse actions
+export type Controller = {
+    webdav: {
+        added?: 1 | -1;
+        deleted?: 1 | -1;
+        modified?: 1 | -1;
+        except?: 1 | -1;
+    };
+    local: {
+        added?: 1 | -1;
+        deleted?: 1 | -1;
+        modified?: 1 | -1;
+        except?: 1 | -1;
+    };
 };
 
 export default class Cloudr extends Plugin {
@@ -39,7 +56,7 @@ export default class Cloudr extends Plugin {
         date?: number;
         error: boolean;
         files: Record<string, string>;
-        except?: Record<string,string>;
+        except?: Record<string, string>;
     };
     // prevDataSaveTimeoutId: NodeJS.Timeout | null;
     intervalId: number;
@@ -68,7 +85,9 @@ export default class Cloudr extends Plugin {
     testVal: boolean;
     // showLoading: boolean;
 
-   
+    onload() {
+        launcher(this);
+    }
 
     checkKeylaunchSync(ev: KeyboardEvent) {
         if (ev.altKey) {
@@ -106,7 +125,20 @@ export default class Cloudr extends Plugin {
         if (this.settings.autoSync) {
             this.intervalId = window.setInterval(() => {
                 console.log("AUTOSYNC INTERVAL TRIGGERED");
-                this.fullSync(false);
+                this.operations.sync({
+                  local: {
+                      added: 1,
+                      deleted: 1,
+                      modified: 1,
+  
+                  },
+                  webdav: {
+                      added: 1,
+                      deleted: 1,
+                      modified: 1,
+  
+                  }
+              });
             }, this.settings.autoSyncInterval * 1000);
         }
     }
@@ -135,7 +167,20 @@ export default class Cloudr extends Plugin {
             try {
                 const ok = await this.test();
                 if (ok) {
-                    await this.fullSync();
+                    await this.operations.sync({
+                      local: {
+                          added: 1,
+                          deleted: 1,
+                          modified: 1,
+      
+                      },
+                      webdav: {
+                          added: 1,
+                          deleted: 1,
+                          modified: 1,
+      
+                      }
+                  });
 
                     this.show("Launch Sync successful");
                 }
@@ -224,7 +269,6 @@ export default class Cloudr extends Plugin {
                     const remoteFilePath = join(this.baseWebdav, filePath);
                     await this.webdavClient.put(remoteFilePath, data);
 
-                   
                     this.prevData.files[filePath] = hash;
                     // await sleep(1000)
                     // this.prevDataSaveTimeoutId = setTimeout(() => {
@@ -280,20 +324,6 @@ export default class Cloudr extends Plugin {
     async openPullCallback(file: TFile | null) {
         console.log("openPull outer");
         if (!this.status && file instanceof TFile) {
-            // if (this.connectionError === false){
-            //     // console.log(Date.now() - this.lastLiveSync)
-            //     if (Date.now() - this.lastLiveSync < 5000){
-
-            //         return;
-            //     }
-            // } else {
-            //     console.log(Date.now() - this.lastLiveSync)
-            //     if (Date.now() - this.lastLiveSync < 20000){
-
-            //         return;
-            //     }
-            // }
-
             // this.lastLiveSync = Date.now()
             this.status = "openPull";
 
@@ -368,34 +398,10 @@ export default class Cloudr extends Plugin {
                             console.log("File too old!");
                         }
                     }
-
-                    // if (remoteHash !== prevHash && prevHash === localHash
-                    //     && prevHash !== undefined){
-                    //     // Remote file was changed
-                    //     console.log("!\n!\n!! Remote UPDATE DETECTED!!\n!")
-
-                    //     if (Date.now() - file.stat.ctime < 60_000){
-                    //         console.log("\nThis file just was created!")
-
-                    //         this.app.vault.modify(file, remoteContent)
-                    //     } else {
-                    //         console.log("nothing done ...")
-                    //     }
-
-                    // }
                 } else {
                     console.log("FILE STATUS: ", remoteContent.status);
                 }
 
-                // const after = Date.now()
-
-                // console.log("\nDuration: ",after - before)
-
-                
-                // this.prevData.files[filePath] = remoteChks;
-                // await sleep(1000)
-
-                // this.status = ""
                 this.setStatus("");
                 this.connectionError = false;
             } catch (error) {
@@ -423,17 +429,6 @@ export default class Cloudr extends Plugin {
     setOpenPull() {
         // set
         if (this.settings.openPull) {
-            // this.registerEvent(this.app.workspace.on("active-leaf-change",()=>{
-            //    const file = this.app.workspace.getActiveFile()
-
-            //     if (file){
-            //     console.log(file.path)
-            //     }
-            //     else {
-            //         console.log("NOOONE")
-            //     }
-            // }))
-
             this.registerEvent(
                 this.app.workspace.on("file-open", (file) => {
                     this.openPullCallback(file);
@@ -537,295 +532,7 @@ export default class Cloudr extends Plugin {
         }
     }
 
-    async pull(button = true, inverted = false) {
-        if (this.prevData.error) {
-            const action = "pull";
-            if (this.force !== action) {
-                this.setForce(action);
-                button && this.show("Error detected - please clear in control panel or force action by retriggering " + action);
-                return;
-            }
-        }
-        if (!this.status) {
-            try {
-                this.setStatus("⬇️");
-                this.status = "pull";
-                if (!(await this.test(false))) {
-                    this.show("Connection Problem detected!");
-                    return;
-                }
-                if (!this.fileTrees) {
-                    button && this.show("Checking files before pulling ...");
-                    console.log("NO FILETREES ");
-                    await this.check();
-                    // button && this.show("");
-                }
 
-                const f = this.fileTrees;
-                if (
-                    !inverted &&
-                    button &&
-                    emptyObj(f.webdavFiles.added) &&
-                    emptyObj(f.webdavFiles.deleted) &&
-                    emptyObj(f.webdavFiles.modified)
-                ) {
-                    if (emptyObj(f.webdavFiles.except)) {
-                        button && this.show("Nothing to pull");
-                        return;
-                    }
-                    // else {
-                    //     button && this.show("Please open control panel to solve your file exceptions then double click either PUSH or PULL to override and force an action for all exceptions")
-                    //     return
-                    // }
-                }
-                this.calcTotal(
-                    this.fileTrees.webdavFiles.added,
-                    this.fileTrees.webdavFiles.modified,
-                    this.fileTrees.webdavFiles.deleted,
-                    this.fileTrees.webdavFiles.except
-                );
-                button && this.show("Pulling ...");
-
-                if (inverted === false) {
-                    await Promise.all([
-                        this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseWebdav),
-                        this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseWebdav),
-                        this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
-                        this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseWebdav),
-                    ]);
-                } else {
-                    await Promise.all([
-                        this.operations.downloadFiles(this.webdavClient, this.fileTrees.localFiles.deleted, this.baseWebdav),
-                        this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseWebdav),
-                        this.operations.downloadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseWebdav),
-                        this.operations.deleteFilesLocal(this.fileTrees.localFiles.added),
-                        this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseWebdav),
-                    ]);
-                }
-                this.finished();
-                button && this.show("Pulling completed - checking again");
-                await this.check(true);
-                this.force = "save";
-                await this.saveState();
-                button && this.show("Done");
-            } catch (error) {
-                console.error("PULL", error);
-                button && this.show("PULL Error: " + error);
-                // this.saveStateError(true)
-                // this.prevData.error = true
-                this.setError(true);
-            } finally {
-                this.status = "";
-                this.setStatus("");
-            }
-        } else {
-            button && this.show("Pulling not possible, currently working on '" + this.status + "'");
-            console.log("Action currently active: ", this.status);
-        }
-    }
-
-    async push(button = true, inverted = false) {
-        if (this.prevData.error) {
-            const action = "push";
-            if (this.force !== action) {
-                this.setForce(action);
-                this.show("Error detected - please clear in control panel or force action by retriggering " + action);
-                return;
-            }
-        }
-        if (!this.status) {
-            if (!(await this.test(false))) {
-                button && this.show("Connection Problem detected!");
-                return;
-            }
-            if (!this.fileTrees) {
-                button && this.show("Checking files before pushing ...");
-                console.log("NO FILETREES ");
-                await this.check();
-            }
-            this.calcTotal(
-                this.fileTrees.localFiles.added,
-                this.fileTrees.localFiles.modified,
-                this.fileTrees.localFiles.deleted,
-                this.fileTrees.localFiles.except,
-                this.fileTrees.webdavFiles.modified
-            );
-            // this.fileTrees.webdavFiles.deleted, this.fileTrees.localFiles.modified, this.fileTrees.webdavFiles.added, this.fileTrees.localFiles.except)
-            this.setStatus("⬆️");
-
-            try {
-                const f = this.fileTrees;
-                if (
-                    !inverted &&
-                    button &&
-                    emptyObj(f.localFiles.added) &&
-                    emptyObj(f.localFiles.deleted) &&
-                    emptyObj(f.localFiles.modified)
-                ) {
-                    if (emptyObj(f.localFiles.except)) {
-                        button && this.show("Nothing to push");
-                        return;
-                    }
-                    // else {
-                    //     button && this.show("Please open control panel to solve your file exceptions then double click either PUSH or PULL to override and force an action for all exceptions")
-                    //     return
-                    // }
-                }
-                button && this.show("Pushing ...");
-
-                if (inverted === false) {
-                    await Promise.all([
-                        this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseWebdav),
-                        this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseWebdav),
-                        this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
-                        this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseWebdav),
-                    ]);
-                } else {
-                    await Promise.all([
-                        this.operations.uploadFiles(this.webdavClient, this.fileTrees.webdavFiles.deleted, this.baseWebdav),
-                        this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseWebdav),
-                        this.operations.uploadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseWebdav),
-                        this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.webdavFiles.added),
-                        this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseWebdav),
-                    ]);
-                }
-
-                this.finished();
-                button && this.show("Pushing completed - saving current state ...");
-                await this.check(true);
-                this.force = "save";
-                await this.saveState();
-                button && this.show("Done");
-            } catch (error) {
-                // button && this.show("PUSH Error: " + error)
-                console.error("push error", error);
-                this.show("PUSH Error: " + error);
-            } finally {
-                this.setStatus("");
-            }
-        } else {
-            button && this.show("Pushing not possible, currently working on '" + this.status + "'");
-            console.log("Action currently active: ", this.status);
-        }
-    }
-
-    async fullSync(button = true, check = true) {
-        if (this.prevData.error) {
-            const action = "fullSync";
-            if (this.force !== action) {
-                this.setForce(action);
-                this.show("Error detected - please clear in control panel or force action by retriggering " + action);
-                return;
-            }
-        }
-
-        // console.log("FULLL")
-        if (!this.status) {
-            if (!(await this.test(false))) {
-                this.show("Connection Problem detected!");
-                return;
-            }
-
-            this.setStatus("⏳");
-            try {
-                if (!this.prevData.error) {
-                    if (this.prevData && this.prevData.files && Object.keys(this.prevData.files).length > 0) {
-                        const lastChecked = Date.now() - this.checkTime;
-
-                        if (check || lastChecked > 1 * 60 * 1000) {
-                            await this.check(false);
-                        }
-
-                        if (this.fileTreesEmpty(button)) {
-                            return;
-                        }
-
-                        this.calcTotal(
-                            this.fileTrees.localFiles.added,
-                            this.fileTrees.localFiles.modified,
-                            this.fileTrees.localFiles.deleted,
-                            this.fileTrees.webdavFiles.deleted,
-                            this.fileTrees.localFiles.modified,
-                            this.fileTrees.webdavFiles.added
-                        );
-
-                        button && this.show("Synchronizing ...");
-
-                        let noError = true;
-                        // await Promise.all([this.pull(false), this.push(false)]) // !!! not usable with this.status set !!!
-                        try {
-                            this.setStatus("⬇️");
-                            // await this.pull(false)
-                            await Promise.all([
-                                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.added, this.baseWebdav),
-                                this.operations.downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.modified, this.baseWebdav),
-                                this.operations.deleteFilesLocal(this.fileTrees.webdavFiles.deleted),
-                                // downloadFiles(this.webdavClient, this.fileTrees.webdavFiles.except, this.baseLocal, this.baseWebdav)
-                            ]);
-                        } catch (error) {
-                            console.log("fullSync Download", error);
-                            noError = false;
-                            return error;
-                        }
-
-                        try {
-                            this.setStatus("⬆️");
-                            // await this.push(false);
-                            await Promise.all([
-                                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.added, this.baseWebdav),
-                                this.operations.uploadFiles(this.webdavClient, this.fileTrees.localFiles.modified, this.baseWebdav),
-                                this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.fileTrees.localFiles.deleted),
-                                // uploadFiles(this.webdavClient, this.fileTrees.localFiles.except, this.baseLocal, this.baseWebdav),
-                            ]);
-                        } catch (error) {
-                            console.log("fullSync Upload", error);
-                            noError = false;
-                            return error;
-                        }
-
-                        // await this.check(false)
-                        this.finished();
-                        if (noError) {
-                            // this.prevData.error = false;
-                            this.setError(false);
-                            this.force = "save";
-                            await this.saveState();
-                        }
-                    } else {
-                        console.log("No previous Data found - please perform actions manually:\nPULL - PUSH");
-                        button &&
-                            this.show(
-                                "No previous Data found - please perform actions manually: PULL or PUSH - if this is a new install use PUSH"
-                            );
-                    }
-                } else {
-                    console.log(
-                        "Previous error detected, please handle manually:\nBest is to Force PULL/PUSH depending on your current file sync requirements"
-                    );
-                    button &&
-                        this.show(
-                            "Previous error detected, please handle manually:\nBest is to Force PULL/PUSH depending on your current file sync requirements"
-                        );
-                }
-
-                // Continue with the rest of your code after both functions have completed
-            } catch (error) {
-                // Handle errors if necessary
-                console.error("fullSync Error:", error, this.prevData);
-                // console.log("fullSync Error:",this.prevData)
-                // this.saveStateError(true)
-                // this.prevData.error = true
-                this.setError(true);
-                this.show("Sync Error: " + error);
-            } finally {
-                this.setStatus("");
-                this.lastSync = Date.now();
-            }
-        } else {
-            button && this.show("Synchronizing not possible, currently working on '" + this.status + "'");
-            console.log("Action currently active: ", this.status);
-        }
-    }
 
     fileTreesEmpty(button = true) {
         const f = this.fileTrees;
@@ -876,7 +583,6 @@ export default class Cloudr extends Plugin {
         if (!this.status || this.force === action) {
             this.setStatus("💾");
             try {
-       
                 this.prevData.files = await this.checksum.generateLocalHashTree(false);
 
                 console.log("SwagggG", this.prevData.files);

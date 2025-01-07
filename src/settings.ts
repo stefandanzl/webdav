@@ -1,9 +1,8 @@
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
+
 import {
     App,
     PluginSettingTab,
     Setting,
-    // Modal, // Editor, MarkdownView, Notice, Plugin, FileSystemAdapter
 } from "obsidian";
 import Cloudr from "./main";
 

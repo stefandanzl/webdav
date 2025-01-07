@@ -91,7 +91,18 @@ export class FileTreeModal extends Modal {
         });
         pullButton.addEventListener("click", () => {
             // this.plugin.show("Pulling files from server ...")
-            this.plugin.pull().then(() => {
+
+            // Regular pull
+            this.plugin.operations.sync({
+                local: {
+                },
+                webdav: {
+                    added: 1,
+                    deleted: 1,
+                    modified: 1,
+                    except: 1
+                }
+            }).then(() => {
                 fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
         });
@@ -102,7 +113,20 @@ export class FileTreeModal extends Modal {
         });
         syncButton.addEventListener("click", () => {
             // this.plugin.show("Synchronizing files with server ...")
-            this.plugin.fullSync(true, false).then(() => {
+            this.plugin.operations.sync({
+                local: {
+                    added: 1,
+                    deleted: 1,
+                    modified: 1,
+
+                },
+                webdav: {
+                    added: 1,
+                    deleted: 1,
+                    modified: 1,
+
+                }
+            }).then(() => {
                 fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
         });
@@ -113,7 +137,15 @@ export class FileTreeModal extends Modal {
         });
         pushButton.addEventListener("click", () => {
             // this.plugin.show("Pushing files to server ...")
-            this.plugin.push().then(() => {
+            this.plugin.operations.sync({
+                local: {
+                    added: 1,
+                    deleted: 1,
+                    modified: 1,
+                    except: 1
+                },
+                webdav: {}
+            }).then(() => {
                 fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
         });
@@ -126,7 +158,17 @@ export class FileTreeModal extends Modal {
         });
         pullInvertButton.addEventListener("click", () => {
             this.plugin.show("Inverted Pulling files from server ...");
-            this.plugin.pull(true, true).then(() => {
+            this.plugin.operations.sync({
+                local: {
+
+                },
+                webdav: {
+                    added: -1,
+                    deleted: -1,
+                    modified: -1,
+                    except: -1
+                }
+            }).then(() => {
                 fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
         });
@@ -137,7 +179,17 @@ export class FileTreeModal extends Modal {
         });
         pushInvertButton.addEventListener("click", () => {
             this.plugin.show("Inverted Pushing files to server ...");
-            this.plugin.push(true, true).then(() => {
+            this.plugin.operations.sync({
+                local: {
+                    added: -1,
+                    deleted: -1,
+                    modified: -1,
+                    except: -1
+                },
+                webdav: {
+
+                }
+            }).then(() => {
                 fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
         });

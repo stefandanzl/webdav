@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-inferrable-types */
-// @ts-nocheck
+
 import { DOMParser } from "xmldom";
 import { requestUrl, RequestUrlResponse } from "obsidian";
 
@@ -18,7 +18,7 @@ export type MethodOptions = {
 
 export type WebDAVDirectoryItem = {
     basename: string;
-    etag: string;
+    etag: string | null;
     filename: string;
     lastmod: string;
     mime: string;
@@ -26,19 +26,23 @@ export type WebDAVDirectoryItem = {
         checksum: string;
         displayname: string;
         getlastmodified: string;
-        resourcetype: string;
-    },
+        resourcetype: string | { collection: string; };
+        getcontentlength?: number;
+        getcontenttype?: string;
+        getetag?: string;
+        checksums?: object;
+    };
     size: number;
     type: "directory" | "file";
 };
-
 
 export class WebDAVClient {
     private baseUrl: string;
     private username: string;
     private password: string;
+    private headers: string | object | undefined;
 
-    constructor(baseUrl: string, options: { username: string; password: string; headers?: string }) {
+    constructor(baseUrl: string, options: { username: string; password: string; headers?: string | object }) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.slice(0, -1) : baseUrl;
         this.username = options.username;
         this.password = options.password;
@@ -47,8 +51,8 @@ export class WebDAVClient {
 
     private createAuthHeader(): string {
         // return `Basic ${Buffer.from(`${this.username}:${this.password}`).toString("base64")}`;
-        if (typeof btoa === 'undefined') {
-            throw new Error('btoa is not available in this environment');
+        if (typeof btoa === "undefined") {
+            throw new Error("btoa is not available in this environment");
         }
         return `Basic ${btoa(`${this.username}:${this.password}`)}`;
     }
@@ -84,7 +88,7 @@ export class WebDAVClient {
         //     throw new Error(`File not found: ${path}`);
         // }
 
-        return {data: response.arrayBuffer, status: response.status };
+        return { data: response.arrayBuffer, status: response.status };
     }
 
     /**
@@ -95,7 +99,7 @@ export class WebDAVClient {
      * @param depth
      * @returns
      */
-    async propfind(path: string, depth?: "0" | "1" | "infinity" = "1"): Promise<RequestUrlResponse> {
+    async propfind(path: string, depth: "0" | "1" | "infinity" = "1"): Promise<RequestUrlResponse> {
         return await requestUrl({
             url: this.createFullUrl(path),
             method: "PROPFIND",
@@ -131,7 +135,7 @@ export class WebDAVClient {
             headers: {
                 Authorization: this.createAuthHeader(),
                 "Content-Type": content instanceof ArrayBuffer ? "application/octet-stream" : "text/plain",
-                Translate: "f", // Tell WebDAV not to do URL translation
+                // Translate: "f", // Tell WebDAV not to do URL translation
             },
             body: content,
         });
@@ -139,7 +143,7 @@ export class WebDAVClient {
         return response.status === 201;
     }
 
-    async delete(path: string): Promise<bool> {
+    async delete(path: string): Promise<boolean> {
         const response = await requestUrl({
             url: this.createFullUrl(path),
             method: "DELETE",
@@ -189,10 +193,6 @@ export class WebDAVClient {
         const response = await this.mkcol(path);
         return response.status === 201;
     }
-
-
-
-   
 
     async getDirectory(path: string = "/", depth: "0" | "1" | "infinity" = "1"): Promise<WebDAVDirectoryItem[]> {
         const response = await this.propfind(path, depth);
