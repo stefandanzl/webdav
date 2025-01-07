@@ -34,9 +34,6 @@ export class Checksum {
             if (this.isExcluded(filename)) {
                 return; // Skip excluded files and folders
             }
-
-            // if (props && props.checksums && props.checksums.checksum) {
-            //     const checksum = props.checksums.checksum;
             if (props && props.checksum) {
                 const checksum = props.checksum;
                 refinedObject[filename] = checksum;

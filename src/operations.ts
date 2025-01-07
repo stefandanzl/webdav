@@ -1,6 +1,6 @@
 import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
-import { join, dirname, log } from "./util";
+import { join, dirname, log, fileTreesEmpty } from "./util";
 import { normalizePath } from "obsidian";
 import { Controller, FileList, Status } from "./const";
 
@@ -252,20 +252,19 @@ export class Operations {
             }
         }
 
-        if (this.plugin.status !== Status.NONE) {
-            show && this.plugin.show(`Operation not possible, currently working on '${this.plugin.status}'`);
-            return;
-        }
-
         try {
             if (!(await this.plugin.test(false))) {
                 show && this.plugin.show("Connection Problem detected!");
                 return;
             }
 
+            if (this.plugin.status !== Status.NONE) {
+                show && this.plugin.show(`Operation not possible, currently working on '${this.plugin.status}'`);
+                return;
+            }
             if (!this.plugin.fileTrees) {
                 show && this.plugin.show("Checking files before operation...");
-                await this.check();
+                await this.check(show);
             }
 
             this.plugin.setStatus(Status.SYNC);
@@ -288,11 +287,12 @@ export class Operations {
             }
 
             const total = this.plugin.calcTotal(...operationsToCount.filter(Boolean));
-            if (total === 0){
-              this.plugin.show("No files to sync")
-              this.plugin.setStatus(Status.NONE)
-              return 
+            if (total === 0) {
+                show && this.plugin.show("No files to sync");
+                this.plugin.setStatus(Status.NONE);
+                return;
             }
+            this.plugin.statusBar2.setText(" 0/" + this.plugin.loadingTotal);
 
             show && this.plugin.show("Synchronizing...");
 
@@ -411,7 +411,7 @@ export class Operations {
             await this.check(true, true);
             await this.plugin.saveState();
             show && this.plugin.show("Done");
-            this.plugin.setStatus(Status.NONE)
+            this.plugin.setStatus(Status.NONE);
         } catch (error) {
             console.error("SYNC", error);
             show && this.plugin.show("SYNC Error: " + error);
@@ -427,7 +427,7 @@ export class Operations {
     }
 
     async check(show = true, force = false) {
-      if (!force && (this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE )) {
+        if (!force && this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
             show && this.plugin.show(`Checking not possible, currently ${this.plugin.status}`);
             return;
         }
@@ -435,9 +435,9 @@ export class Operations {
         this.plugin.setStatus(Status.CHECK);
         show && this.plugin.show(`${Status.CHECK} Checking ...`);
 
-        let response
+        let response;
         try {
-             response = await this.plugin.test(false, true);
+            response = await this.plugin.test(false, true);
             if (!response) {
                 throw new Error("Testing failed, can't continue Check action!");
             }
@@ -464,8 +464,12 @@ export class Operations {
             );
             log(JSON.stringify(comparedFileTrees, null, 2));
             this.plugin.fileTrees = comparedFileTrees;
+            // if (this.plugin.modal) {
+            //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+            // }
+            this.plugin.checkTime = Date.now();
 
-            show && (this.plugin.fileTreesEmpty() ? null : this.plugin.show("Finished checking files"));
+            show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
             this.plugin.setStatus(Status.NONE);
             return true;
         } catch (error) {
@@ -473,7 +477,7 @@ export class Operations {
             show && this.plugin.show("CHECK ERROR: " + error);
             this.plugin.setError(true);
             response ? this.plugin.setStatus(Status.ERROR) : this.plugin.setStatus(Status.OFFLINE);
-            throw error
-        } 
+            throw error;
+        }
     }
 }

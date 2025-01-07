@@ -91,19 +91,15 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     },
     exclusionsOverride: false,
 
-    launchSync: false,
     liveSync: false,
-    openPull: false,
     autoSync: false,
-    autoSyncInterval: 10,
+    autoSyncInterval: 30,
     enableRibbons: true,
     skipHiddenMobile: false,
     skipHiddenDesktop: false,
 };
 
 export interface CloudrSettings {
-    // mySetting: string;
-    // Connection
     url: string;
     username: string;
     password: string;
@@ -111,10 +107,8 @@ export interface CloudrSettings {
     overrideVault: string;
     exclusions: Exclusions;
     exclusionsOverride: boolean;
-    launchSync: boolean;
 
     liveSync: boolean;
-    openPull: boolean;
     autoSync: boolean;
     autoSyncInterval: number;
     modifySyncInterval: number;

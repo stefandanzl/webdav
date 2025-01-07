@@ -216,5 +216,6 @@ export class FileTreeModal extends Modal {
     onClose() {
         const { contentEl } = this;
         contentEl.empty();
+        this.plugin.modal;
     }
 }

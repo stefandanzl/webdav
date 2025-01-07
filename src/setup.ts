@@ -5,6 +5,7 @@ import { Checksum } from "./checksum";
 import { Operations } from "./operations";
 import { Platform } from "obsidian";
 import { Status } from "./const";
+import { log } from "./util";
 
 export async function launcher(plugin: Cloudr) {
     await plugin.loadSettings();
@@ -17,22 +18,10 @@ export async function launcher(plugin: Cloudr) {
     plugin.operations = new Operations(plugin);
 
     plugin.mobile = Platform.isMobileApp;
-
     plugin.connectionError = false;
-
-    plugin.skipLaunchSync = false;
-    plugin.testVal = false;
-
-    if (plugin.settings.launchSync) {
-        document.addEventListener("keydown", plugin.checkKeylaunchSync, {
-            once: true,
-        });
-    }
-
+    plugin.testVal = false
     plugin.settings.exclusionsOverride = false;
-
     plugin.setBaseWebdav();
-
     plugin.prevPath = `${plugin.app.vault.configDir}/plugins/webdav/prevdata.json`;
     // console.log(plugin.prevPath)
 
@@ -86,7 +75,7 @@ export async function launcher(plugin: Cloudr) {
         // prevData.date = new Date(prevData.date)
         // plugin.prevData = prevData
 
-        console.log("PREVDATA LOADED: ", plugin.prevData);
+        log("PREVDATA LOADED: ", plugin.prevData);
     } catch {
         plugin.prevData = {
             error: true,
@@ -238,14 +227,4 @@ export async function launcher(plugin: Cloudr) {
         plugin.setAutoSync();
     }
 
-    if (plugin.settings.openPull) {
-        plugin.setOpenPull();
-    }
-
-    if (plugin.settings.launchSync) {
-        plugin.app.workspace.onLayoutReady(() => {
-            plugin.testVal = true;
-            plugin.launchSyncCallback();
-        });
-    }
 }

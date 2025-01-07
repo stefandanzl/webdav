@@ -151,19 +151,10 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     })
             );
 
-        new Setting(containerEl)
-            .setName("Launch Sync")
-            .setDesc("Check files and sync on app start automatically.\nPress ALT Key on Windows to skip")
-            .addToggle((toggle) =>
-                toggle.setValue(this.plugin.settings.launchSync).onChange(async (value) => {
-                    this.plugin.settings.launchSync = value;
-                    await this.plugin.saveSettings();
-                })
-            );
 
         new Setting(containerEl)
-            .setName("Live Sync")
-            .setDesc("Enable Live Synchronization on modification")
+            .setName("Mod Sync")
+            .setDesc("Enable Synchronization on modification")
             .addToggle((toggle) =>
                 toggle.setValue(this.plugin.settings.liveSync).onChange(async (value) => {
                     this.plugin.settings.liveSync = value;
@@ -172,20 +163,10 @@ export class CloudrSettingsTab extends PluginSettingTab {
                 })
             );
 
-        new Setting(containerEl)
-            .setName("Open Pull")
-            .setDesc("Enable Pulling remote data when files are opened or revisited")
-            .addToggle((toggle) =>
-                toggle.setValue(this.plugin.settings.openPull).onChange(async (value) => {
-                    this.plugin.settings.openPull = value;
-                    this.plugin.setOpenPull();
-                    await this.plugin.saveSettings();
-                })
-            );
 
         new Setting(containerEl)
-            .setName("Auto Sync")
-            .setDesc("Enable automatic syncing in intervals\nThis will override Modify Sync")
+            .setName("Auto Interval Sync")
+            .setDesc("Enable automatic syncing in intervals\nThis will override Mod Sync")
             .addToggle((toggle) =>
                 toggle.setValue(this.plugin.settings.autoSync).onChange(async (value) => {
                     this.plugin.settings.autoSync = value;
@@ -195,7 +176,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
             );
 
         new Setting(containerEl)
-            .setName("Auto Sync fixed Interval")
+            .setName("Auto Interval Sync periodic interval in seconds")
             .setDesc("Enter the desired interval in seconds")
             .addText((text) =>
                 text
