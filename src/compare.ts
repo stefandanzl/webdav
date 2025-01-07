@@ -1,6 +1,6 @@
 import Cloudr from "./main";
 import { extname, log } from "./util";
-import { FileTree, FileList , PreviousObject} from "./const";
+import { FileTree, FileList , PreviousObject, Exclusions} from "./const";
 
 export class Compare {
     constructor(public plugin: Cloudr) {
@@ -130,7 +130,7 @@ export class Compare {
             markers?: string[];
         }
     ) => {
-        const { extensions = [], directories = [], markers = [] } = this.plugin.settings.exclusions;
+        const { extensions = [], directories = [], markers = [] }:Exclusions = this.plugin.settings.exclusions;
         let filtered: FileList = {};
         const directoriesMod = [...directories]; // necessary because otherwise original array will be manipulated!
 

@@ -3,6 +3,7 @@ import Cloudr from "./main";
 import { Status } from "./const";
 
 export class FileTreeModal extends Modal {
+    fileTreeDiv: HTMLDivElement;
     constructor(
         app: App,
         public plugin: Cloudr
@@ -43,7 +44,7 @@ export class FileTreeModal extends Modal {
         checkButton.addEventListener("click", () => {
             // this.plugin.show("Checking files ...")
             this.plugin.operations.check().then(() => {
-                fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
         });
 
@@ -98,7 +99,7 @@ export class FileTreeModal extends Modal {
                     },
                 })
                 .then(() => {
-                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                    this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
                 });
         });
 
@@ -122,7 +123,7 @@ export class FileTreeModal extends Modal {
                     },
                 })
                 .then(() => {
-                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                    this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
                 });
         });
 
@@ -143,7 +144,7 @@ export class FileTreeModal extends Modal {
                     webdav: {},
                 })
                 .then(() => {
-                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                    this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
                 });
         });
 
@@ -166,7 +167,7 @@ export class FileTreeModal extends Modal {
                     },
                 })
                 .then(() => {
-                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                    this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
                 });
         });
 
@@ -187,7 +188,7 @@ export class FileTreeModal extends Modal {
                     webdav: {},
                 })
                 .then(() => {
-                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                    this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
                 });
         });
 
@@ -195,24 +196,20 @@ export class FileTreeModal extends Modal {
         containDiv.style.overflow = "auto";
         containDiv.style.height = "100%";
 
-        const fileTreeDiv = containDiv.createEl("div");
+        this.fileTreeDiv = containDiv.createEl("div");
 
-        fileTreeDiv.style.whiteSpace = "pre"; // "pre-wrap" ;
-        fileTreeDiv.style.minHeight = "70vh";
-        // fileTreeDiv.style.overflowX = "auto"
-        // fileTreeDiv.style.overflowY = "auto"
-        // fileTreeDiv.style.marginLeft = `${buttonDivWidth}px`;
-        fileTreeDiv.style.marginLeft = `80px`;
-        fileTreeDiv.style.overflow = "auto";
-        fileTreeDiv.style.userSelect = "text"; /* Allow text selection */
-        // fileTreeDiv.style.cursor = "text";
-        fileTreeDiv.style.height = "100px";
-        fileTreeDiv.style.paddingBottom = "10px";
+        this.fileTreeDiv.style.whiteSpace = "pre"; // "pre-wrap" ;
+        this.fileTreeDiv.style.minHeight = "70vh";
+        this.fileTreeDiv.style.marginLeft = `80px`;
+        this.fileTreeDiv.style.overflow = "auto";
+        this.fileTreeDiv.style.userSelect = "text"; 
+        this.fileTreeDiv.style.height = "100px";
+        this.fileTreeDiv.style.paddingBottom = "10px";
 
         if (this.plugin.fileTrees) {
-            fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 4)); //.replace(/: /g, ': \t'));
+            this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 4)); //.replace(/: /g, ': \t'));
         } else {
-            fileTreeDiv.setText("Press CHECK button for data to be shown");
+            this.fileTreeDiv.setText("Press CHECK button for data to be shown");
         }
     }
 

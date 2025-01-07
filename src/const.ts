@@ -9,9 +9,7 @@ export enum Status {
     TEST = "🧪",
     SAVE = "💾",
     PAUSE = "⏸️",
-    OFFLINE = "📴"
-
-    
+    OFFLINE = "📴",
 }
 
 export type FileList = Record<string, string>;
@@ -77,4 +75,57 @@ export type WebDAVDirectoryItem = {
     };
     size: number;
     type: "directory" | "file";
+};
+
+export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
+    url: "",
+    username: "",
+    password: "",
+
+    webdavPath: "",
+    overrideVault: "",
+    exclusions: {
+        directories: ["node_modules", ".git", "webdav"],
+        extensions: [".exe"],
+        markers: ["prevdata.json", ".obsidian/workspace.json"],
+    },
+    exclusionsOverride: false,
+
+    launchSync: false,
+    liveSync: false,
+    openPull: false,
+    autoSync: false,
+    autoSyncInterval: 10,
+    enableRibbons: true,
+    skipHiddenMobile: false,
+    skipHiddenDesktop: false,
+};
+
+export interface CloudrSettings {
+    // mySetting: string;
+    // Connection
+    url: string;
+    username: string;
+    password: string;
+    webdavPath: string;
+    overrideVault: string;
+    exclusions: Exclusions;
+    exclusionsOverride: boolean;
+    launchSync: boolean;
+
+    liveSync: boolean;
+    openPull: boolean;
+    autoSync: boolean;
+    autoSyncInterval: number;
+    modifySyncInterval: number;
+    modifySync: boolean;
+    enableRibbons: boolean;
+    skipHiddenDesktop: boolean;
+    skipHiddenMobile: boolean;
+}
+
+export type Exclusions = {
+    directories: string[];
+    extensions: string[];
+    markers: string[];
 };

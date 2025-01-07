@@ -1,13 +1,13 @@
 import { TFile, TAbstractFile, Notice, Plugin } from "obsidian";
 import { WebDAVClient } from "./webdav";
-import { CloudrSettings, DEFAULT_SETTINGS } from "./settings";
+import {  } from "./settings";
 import { FileTreeModal } from "./modal";
 import { Checksum } from "./checksum";
 import { Compare } from "./compare";
 import { Operations } from "./operations";
 import { join, emptyObj, sha1, log } from "./util";
 import { launcher } from "./setup";
-import { FileList, FileTree, PreviousObject, Status } from "./const";
+import { FileList, FileTree, PreviousObject, Status,CloudrSettings, DEFAULT_SETTINGS } from "./const";
 
 export default class Cloudr extends Plugin {
     settings: CloudrSettings;
@@ -126,16 +126,7 @@ export default class Cloudr extends Plugin {
         }
 
         if (!this.prevData.error) {
-            // this.setStatus("🚀");
-
-            // setTimeout(()=>{
-            //     console.log("waiting over")
-            // }, 500)
-
-            // if (this.mobile === false && this.app.lastEvent?.altKey === true){
-            //     this.show("Alt key pressed to skip Launch")
-            //     return
-            // }
+ 
             try {
                 const ok = await this.test();
                 if (ok) {
@@ -393,8 +384,8 @@ export default class Cloudr extends Plugin {
     }
 
     async test(show = true, force = false) {
-        if (!force && this.status !== Status.NONE) {
-            show && this.show(`Checking not possible, currently ${this.status}`);
+        if (!force && (this.status !== Status.NONE && this.status !== Status.OFFLINE )) {
+            show && this.show(`Testing not possible, currently ${this.status}`);
             return;
         }
 
@@ -452,7 +443,7 @@ export default class Cloudr extends Plugin {
     async setError(error: boolean) {
         this.prevData.error = error;
         if (error) {
-            this.setStatus(Status.NONE);
+            this.setStatus(Status.ERROR);
         }
         // this.setStatus("")
         this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2));
@@ -469,7 +460,7 @@ export default class Cloudr extends Plugin {
                 return;
             }
         }
-        if (this.status === Status.NONE || this.force === action) {
+        if (this.status === Status.NONE && !this.prevData.error ) {
             this.setStatus(Status.SAVE);
             try {
                 this.prevData.files = await this.checksum.generateLocalHashTree(false);
@@ -495,6 +486,7 @@ export default class Cloudr extends Plugin {
                 this.setStatus(Status.NONE);
             }
         } else {
+          this.show(`Saving not possible because of ${this.status} \nplease clear Error in Control Panel`)
             console.log("Action currently active: ", this.status, "\nCan't save right now!");
         }
     }
@@ -587,12 +579,18 @@ export default class Cloudr extends Plugin {
     }
 
     async displayModal() {
-        if (!this.fileTrees) {
-            await this.operations.check();
-        }
+      const modal = new FileTreeModal(this.app, this)
+      modal.open();
 
-        new FileTreeModal(this.app, this).open();
-        // console.log(this.fileTrees)
+        if (!this.fileTrees) {
+            const response = await this.operations.check();
+            if (response){
+              modal.fileTreeDiv.setText(JSON.stringify(this.fileTrees, null, 2));
+            } else {
+              modal.fileTreeDiv.setText("Checking failed!")
+            }
+            
+        }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-inferrable-types

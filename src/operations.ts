@@ -242,29 +242,29 @@ export class Operations {
         }
     }
 
-    async sync(controller: Controller, button = true) {
+    async sync(controller: Controller, show = true) {
         if (this.plugin.prevData.error) {
             const action = "sync";
             if (this.plugin.force !== action) {
                 this.plugin.setForce(action);
-                button && this.plugin.show("Error detected - please clear in control panel or force action by retriggering " + action);
+                show && this.plugin.show("Error detected - please clear in control panel or force action by retriggering " + action);
                 return;
             }
         }
 
         if (this.plugin.status !== Status.NONE) {
-            button && this.plugin.show(`Operation not possible, currently working on '${this.plugin.status}'`);
+            show && this.plugin.show(`Operation not possible, currently working on '${this.plugin.status}'`);
             return;
         }
 
         try {
             if (!(await this.plugin.test(false))) {
-                button && this.plugin.show("Connection Problem detected!");
+                show && this.plugin.show("Connection Problem detected!");
                 return;
             }
 
             if (!this.plugin.fileTrees) {
-                button && this.plugin.show("Checking files before operation...");
+                show && this.plugin.show("Checking files before operation...");
                 await this.check();
             }
 
@@ -287,9 +287,14 @@ export class Operations {
                 if (controller.local.except) operationsToCount.push(this.plugin.fileTrees.localFiles.except);
             }
 
-            this.plugin.calcTotal(...operationsToCount.filter(Boolean));
+            const total = this.plugin.calcTotal(...operationsToCount.filter(Boolean));
+            if (total === 0){
+              this.plugin.show("No files to sync")
+              this.plugin.setStatus(Status.NONE)
+              return 
+            }
 
-            button && this.plugin.show("Synchronizing...");
+            show && this.plugin.show("Synchronizing...");
 
             const operations: Promise<void>[] = [];
 
@@ -402,13 +407,14 @@ export class Operations {
             // Execute all operations concurrently
             await Promise.all(operations);
 
-            button && this.plugin.show("Sync completed - checking again");
+            show && this.plugin.show("Sync completed - checking again");
             await this.check(true, true);
             await this.plugin.saveState();
-            button && this.plugin.show("Done");
+            show && this.plugin.show("Done");
+            this.plugin.setStatus(Status.NONE)
         } catch (error) {
             console.error("SYNC", error);
-            button && this.plugin.show("SYNC Error: " + error);
+            show && this.plugin.show("SYNC Error: " + error);
             this.plugin.setError(true);
             this.plugin.setStatus(Status.ERROR);
         } finally {
@@ -421,7 +427,7 @@ export class Operations {
     }
 
     async check(show = true, force = false) {
-        if (!force && this.plugin.status !== Status.NONE) {
+      if (!force && (this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE )) {
             show && this.plugin.show(`Checking not possible, currently ${this.plugin.status}`);
             return;
         }
@@ -429,8 +435,9 @@ export class Operations {
         this.plugin.setStatus(Status.CHECK);
         show && this.plugin.show(`${Status.CHECK} Checking ...`);
 
+        let response
         try {
-            const response = await this.plugin.test(false);
+             response = await this.plugin.test(false, true);
             if (!response) {
                 throw new Error("Testing failed, can't continue Check action!");
             }
@@ -459,17 +466,14 @@ export class Operations {
             this.plugin.fileTrees = comparedFileTrees;
 
             show && (this.plugin.fileTreesEmpty() ? null : this.plugin.show("Finished checking files"));
+            this.plugin.setStatus(Status.NONE);
             return true;
         } catch (error) {
             console.error("CHECK ERROR: ", error);
             show && this.plugin.show("CHECK ERROR: " + error);
             this.plugin.setError(true);
-            this.plugin.setStatus(Status.ERROR);
-            throw error;
-        } finally {
-            if (this.plugin.status !== Status.ERROR) {
-                this.plugin.setStatus(Status.NONE);
-            }
-        }
+            response ? this.plugin.setStatus(Status.ERROR) : this.plugin.setStatus(Status.OFFLINE);
+            throw error
+        } 
     }
 }

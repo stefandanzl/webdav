@@ -1,10 +1,8 @@
 import { WebDAVClient } from "./webdav";
-
 import Cloudr from "./main";
 import { extname, sha1, log } from "./util";
 import { TAbstractFile, TFile, TFolder, normalizePath } from "obsidian";
-import { Exclusions } from "./settings";
-import { FileList, WebDAVDirectoryItem } from "./const";
+import { FileList, WebDAVDirectoryItem, Exclusions } from "./const";
 
 interface FileProcessor {
     (file: string): Promise<void>;
