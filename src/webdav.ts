@@ -2,39 +2,9 @@
 
 import { DOMParser } from "xmldom";
 import { requestUrl, RequestUrlResponse } from "obsidian";
+import { WebDAVDirectoryItem } from "./const";
 
-export interface WebDAVResource {
-    href: string;
-    type: "file" | "directory";
-    contentLength?: number;
-    lastModified?: string;
-    contentType?: string;
-}
 
-export type MethodOptions = {
-    data: string | ArrayBuffer;
-    headers: string;
-};
-
-export type WebDAVDirectoryItem = {
-    basename: string;
-    etag: string | null;
-    filename: string;
-    lastmod: string;
-    mime: string;
-    props: {
-        checksum: string;
-        displayname: string;
-        getlastmodified: string;
-        resourcetype: string | { collection: string; };
-        getcontentlength?: number;
-        getcontenttype?: string;
-        getetag?: string;
-        checksums?: object;
-    };
-    size: number;
-    type: "directory" | "file";
-};
 
 export class WebDAVClient {
     private baseUrl: string;

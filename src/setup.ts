@@ -95,6 +95,8 @@ import { Platform } from "obsidian";
             plugin.prevData = {
                 error: true,
                 files: {},
+                date: Date.now(),
+                except: {}
             };
 
             plugin.app.vault.adapter.write(plugin.prevPath, JSON.stringify(plugin.prevData, null, 2));

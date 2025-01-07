@@ -5,6 +5,7 @@ import {
     Setting,
 } from "obsidian";
 import Cloudr from "./main";
+import { log } from "./util";
 
 export type Exclusions = {
   directories: string[];
@@ -80,6 +81,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.url)
                     .onChange(async (value) => {
                         this.plugin.settings.url = value;
+                        this.plugin.setClient();
                         await this.plugin.saveSettings();
                         // this.plugin.setClient()
                     })
@@ -94,6 +96,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.username)
                     .onChange(async (value) => {
                         this.plugin.settings.username = value;
+                        this.plugin.setClient();
                         await this.plugin.saveSettings();
                         // this.plugin.setClient()
                     })
@@ -108,6 +111,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.password)
                     .onChange(async (value) => {
                         this.plugin.settings.password = value;
+                        this.plugin.setClient();
                         await this.plugin.saveSettings();
                         // this.plugin.setClient()
                     })
@@ -118,9 +122,10 @@ export class CloudrSettingsTab extends PluginSettingTab {
             .setDesc("Click Button to test Server's connection")
             .addButton((button) =>
                 button
-                    .onClick(() => {
-                        this.plugin.test().then(() => {
-                            this.plugin.setClient();
+                    .onClick( () => {
+                      this.plugin.setClient().then(()=>{
+                              this.plugin.test()
+
                             button.setButtonText(this.plugin.prevData.error ? "FAIL" : "OK");
                             // if( this.plugin.message){
                             //     // nothing yet
@@ -170,7 +175,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         value = value.replace(/\r/g, "").replace(/\\/g, "/");
                         this.plugin.settings.exclusions.directories = value.split("\n");
-                        console.log(JSON.stringify(this.plugin.settings.exclusions));
+                        log(JSON.stringify(this.plugin.settings.exclusions));
                         await this.plugin.saveSettings();
                     })
             );

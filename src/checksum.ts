@@ -1,37 +1,32 @@
-
-import { WebDAVClient, WebDAVDirectoryItem } from "./webdav";
+import { WebDAVClient } from "./webdav";
 
 import Cloudr from "./main";
-import { extname, sha1 } from "./util";
-import {
-    TAbstractFile,
-    TFile,
-    TFolder,
-    normalizePath, // App, Vault,
-} from "obsidian";
+import { extname, sha1, log } from "./util";
+import { TAbstractFile, TFile, TFolder, normalizePath } from "obsidian";
 import { Exclusions } from "./settings";
+import { FileList, WebDAVDirectoryItem } from "./const";
 
 interface FileProcessor {
-  (file: string): Promise<void>;
+    (file: string): Promise<void>;
 }
 
 interface ConcurrencyProcessor {
-  <T>(items: T[], worker: (item: T) => Promise<void>, limit: number): Promise<void>;
+    <T>(items: T[], worker: (item: T) => Promise<void>, limit: number): Promise<void>;
 }
 
 export class Checksum {
-    localFiles: Record<string, string> = {};
+    localFiles: FileList = {};
 
     constructor(public plugin: Cloudr) {
         this.plugin = plugin;
     }
 
     refineObject(data: WebDAVDirectoryItem[], exclusions: Exclusions) {
-        const refinedObject: Record<string,string> = {};
+        const refinedObject: FileList = {};
 
         data.forEach((item) => {
             // console.log(item)
-            const { filename,  props } = item;
+            const { filename, props } = item;
 
             // const isDirectory = type === "directory";
             // const fullPath = isDirectory ? filename + "/" : filename;
@@ -96,8 +91,8 @@ export class Checksum {
         return false;
     }
 
-    removeBase(fileChecksums: Record<string, string>, basePath: string) {
-        const removedBase: Record<string, string> = {};
+    removeBase(fileChecksums: FileList, basePath: string) {
+        const removedBase: FileList = {};
 
         for (const [filePath, checksum] of Object.entries(fileChecksums)) {
             // Check if the file path starts with the base path
@@ -114,71 +109,59 @@ export class Checksum {
         return removedBase;
     }
 
-    async getHiddenLocalFiles(
-      path: string,
-      exclude = true,
-      concurrency = 15
-  ): Promise<void> {
-      const { files, folders } = await this.plugin.app.vault.adapter.list(path);
-  
-      // Process files with concurrency control
-      const processConcurrently: ConcurrencyProcessor = async (items, worker, limit) => {
-          for (let i = 0; i < items.length; i += limit) {
-              const chunk = items.slice(i, i + limit);
-              await Promise.all(chunk.map(worker));
-          }
-      };
-  
-      const processFile: FileProcessor = async (file) => {
-          try {
-              if (exclude && this.isExcluded(file)) {
-                  return;
-              }
-  
-              const data = await this.plugin.app.vault.adapter.read(file);
-              this.localFiles[file] = sha1(data);
-          } catch (error) {
-              console.error(`Error processing file ${file}:`, error);
-          }
-      };
-  
-      // Process folders recursively
-      const processFolder = async (folder: string): Promise<void> => {
-          const folderPath = `${folder}/`;
-          
-          if (exclude && this.isExcluded(folderPath)) {
-              return;
-          }
-  
-          try {
-              this.localFiles[folderPath] = "";
-              await this.getHiddenLocalFiles(
-                  normalizePath(folder),
-                  exclude,
-                  concurrency
-              );
-          } catch (error) {
-              console.error(`Error processing folder ${folder}:`, error);
-          }
-      };
-  
-      // Execute file and folder processing
-      await Promise.all([
-          processConcurrently(files, processFile, concurrency),
-          processConcurrently(folders, processFolder, concurrency)
-      ]);
-  }
+    async getHiddenLocalFiles(path: string, exclude = true, concurrency = 15): Promise<void> {
+        const { files, folders } = await this.plugin.app.vault.adapter.list(path);
 
+        // Process files with concurrency control
+        const processConcurrently: ConcurrencyProcessor = async (items, worker, limit) => {
+            for (let i = 0; i < items.length; i += limit) {
+                const chunk = items.slice(i, i + limit);
+                await Promise.all(chunk.map(worker));
+            }
+        };
 
-/**
- * Generate a hash tree of the local files
- * @param exclude - Exclude hidden files and folders - 
- * is used here also to differentiate when populating prevData
- * is used in the getHiddenLocalFiles function
- * @returns Hash tree of the local files
- * @async
- * @function generateLocalHashTree
- */
+        const processFile: FileProcessor = async (file) => {
+            try {
+                if (exclude && this.isExcluded(file)) {
+                    return;
+                }
+
+                const data = await this.plugin.app.vault.adapter.readBinary(file);
+                this.localFiles[file] = await sha1(data);
+            } catch (error) {
+                console.error(`Error processing file ${file}:`, error);
+            }
+        };
+
+        // Process folders recursively
+        const processFolder = async (folder: string): Promise<void> => {
+            const folderPath = `${folder}/`;
+
+            if (exclude && this.isExcluded(folderPath)) {
+                return;
+            }
+
+            try {
+                this.localFiles[folderPath] = "";
+                await this.getHiddenLocalFiles(normalizePath(folder), exclude, concurrency);
+            } catch (error) {
+                console.error(`Error processing folder ${folder}:`, error);
+            }
+        };
+
+        // Execute file and folder processing
+        await Promise.all([processConcurrently(files, processFile, concurrency), processConcurrently(folders, processFolder, concurrency)]);
+    }
+
+    /**
+     * Generate a hash tree of the local files
+     * @param exclude - Exclude hidden files and folders -
+     * is used here also to differentiate when populating prevData
+     * is used in the getHiddenLocalFiles function
+     * @returns Hash tree of the local files
+     * @async
+     * @function generateLocalHashTree
+     */
     generateLocalHashTree = async (exclude: boolean) => {
         // const rootFolder = self.basePath;
         // const checksumTable = {};
@@ -196,8 +179,8 @@ export class Checksum {
                         if (exclude && this.isExcluded(filePath)) {
                             return;
                         }
-                        const content = await this.plugin.app.vault.read(element);
-                        this.localFiles[filePath] = sha1(content);
+                        const content = await this.plugin.app.vault.readBinary(element);
+                        this.localFiles[filePath] = await sha1(content);
                     } else if (element instanceof TFolder) {
                         const filePath = element.path + "/";
                         if ((exclude && this.isExcluded(filePath)) || filePath === "//") {
@@ -213,30 +196,30 @@ export class Checksum {
             })
         );
         // if (!this.plugin.settings.skipHidden) {
-            const configDir = this.plugin.app.vault.configDir;
-   
-            this.localFiles[configDir+"/"] = "";
-            await this.getHiddenLocalFiles(configDir, exclude);
+        const configDir = this.plugin.app.vault.configDir;
+
+        this.localFiles[configDir + "/"] = "";
+        await this.getHiddenLocalFiles(configDir, exclude);
         // }
-        if (exclude){
-        this.plugin.localFiles = this.localFiles;
+        if (exclude) {
+            this.plugin.localFiles = this.localFiles;
         }
         return this.localFiles;
     };
 
     // Fetch directory contents from webdav
-    generateWebdavHashTree = async (webdavClient: WebDAVClient, rootFolder: string, exclusions: Exclusions) => {
+    generateWebdavHashTree = async (webdavClient: WebDAVClient, rootFolder: string, exclusions: Exclusions): Promise<FileList> => {
         try {
             const exists = await webdavClient.exists(rootFolder);
             if (exists) {
-                console.log("ROOTFOLDER DOES EXIST");
+                log("ROOTFOLDER DOES EXIST");
             } else {
-                console.log("DOES NOT EXIST");
+                log("DOES NOT EXIST");
                 await webdavClient.createDirectory(rootFolder);
             }
         } catch (error) {
             console.error("ERROR: generatessWebdavHashTree", error);
-            return error;
+            // return error;
         }
 
         // exclusions.directories = exclusions.directories || [];
@@ -255,7 +238,7 @@ export class Checksum {
 
             const webdavHashtree = this.removeBase(refinedResult, rootFolder);
             // writeFileSync("out/output-webdav2.json", JSON.stringify(refinedResult, null, 2));
-            console.log("webdav: ", webdavHashtree);
+            log("webdav: ", webdavHashtree);
             this.plugin.webdavFiles = webdavHashtree;
             return webdavHashtree;
         } catch (error) {

@@ -5,31 +5,11 @@ import { FileTreeModal } from "./modal";
 import { Checksum } from "./checksum";
 import { Compare } from "./compare";
 import { Operations } from "./operations";
-import { join, emptyObj, sha1 } from "./util";
+import { join, emptyObj, sha1, log } from "./util";
 import { launcher } from "./setup";
+import {FileList, FileTree, PreviousObject }from "./const"
 
-export type FileTree = {
-    added: Record<string, string>;
-    deleted: Record<string, string>;
-    modified: Record<string, string>;
-    except: Record<string, string>;
-};
 
-// This is used to build custom functionality with the sync function like inverse actions
-export type Controller = {
-    webdav: {
-        added?: 1 | -1;
-        deleted?: 1 | -1;
-        modified?: 1 | -1;
-        except?: 1 | -1;
-    };
-    local: {
-        added?: 1 | -1;
-        deleted?: 1 | -1;
-        modified?: 1 | -1;
-        except?: 1 | -1;
-    };
-};
 
 export default class Cloudr extends Plugin {
     settings: CloudrSettings;
@@ -52,12 +32,7 @@ export default class Cloudr extends Plugin {
     baseLocal: string;
     baseWebdav: string;
     prevPath: string;
-    prevData: {
-        date?: number;
-        error: boolean;
-        files: Record<string, string>;
-        except?: Record<string, string>;
-    };
+    prevData: PreviousObject;
     // prevDataSaveTimeoutId: NodeJS.Timeout | null;
     intervalId: number;
     status: string;
@@ -74,8 +49,8 @@ export default class Cloudr extends Plugin {
     pause: boolean;
     force: string;
     mobile: boolean;
-    localFiles: Record<string, string>;
-    webdavFiles: Record<string, string>;
+    localFiles: FileList;
+    webdavFiles: FileList;
 
     loadingTotal: number;
     loadingProcessed: number;
@@ -126,19 +101,17 @@ export default class Cloudr extends Plugin {
             this.intervalId = window.setInterval(() => {
                 console.log("AUTOSYNC INTERVAL TRIGGERED");
                 this.operations.sync({
-                  local: {
-                      added: 1,
-                      deleted: 1,
-                      modified: 1,
-  
-                  },
-                  webdav: {
-                      added: 1,
-                      deleted: 1,
-                      modified: 1,
-  
-                  }
-              });
+                    local: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                    },
+                    webdav: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                    },
+                });
             }, this.settings.autoSyncInterval * 1000);
         }
     }
@@ -168,19 +141,17 @@ export default class Cloudr extends Plugin {
                 const ok = await this.test();
                 if (ok) {
                     await this.operations.sync({
-                      local: {
-                          added: 1,
-                          deleted: 1,
-                          modified: 1,
-      
-                      },
-                      webdav: {
-                          added: 1,
-                          deleted: 1,
-                          modified: 1,
-      
-                      }
-                  });
+                        local: {
+                            added: 1,
+                            deleted: 1,
+                            modified: 1,
+                        },
+                        webdav: {
+                            added: 1,
+                            deleted: 1,
+                            modified: 1,
+                        },
+                    });
 
                     this.show("Launch Sync successful");
                 }
@@ -260,20 +231,13 @@ export default class Cloudr extends Plugin {
                     this.setStatus("🔄");
 
                     console.log(filePath);
-                    const data = await this.app.vault.read(file);
-                    // const hash = createHash('sha1').update(data).digest('hex');
-                    // const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
-                    // const hash = sha1.update(data).hex();
-                    const hash = sha1(data);
+                    const data = await this.app.vault.readBinary(file);
+                    const hash = await sha1(data);
 
                     const remoteFilePath = join(this.baseWebdav, filePath);
                     await this.webdavClient.put(remoteFilePath, data);
 
                     this.prevData.files[filePath] = hash;
-                    // await sleep(1000)
-                    // this.prevDataSaveTimeoutId = setTimeout(() => {
-                    //     console.log('Timeout triggered');
-                    //   }, 15_000);
                     this.savePrevData();
 
                     // this.status = ""
@@ -288,16 +252,9 @@ export default class Cloudr extends Plugin {
                     this.lastLiveSync = Date.now();
                     // this.statusBar.setText("📴");
 
-                    // }
-
                     // this.status = "";
                     this.setStatus("");
                 }
-                // finally {
-
-                // this.status = ""
-                // this.setStatus("")
-                // }
             } else {
                 this.renewLiveSyncTimeout(abstractFile);
             }
@@ -347,11 +304,11 @@ export default class Cloudr extends Plugin {
                 this.setStatus("🔄");
 
                 console.log(filePath);
-                const data = await this.app.vault.read(file);
+                const data = await this.app.vault.readBinary(file);
                 // const hash = createHash('sha1').update(data).digest('hex');
                 // const hash = CryptoJS.SHA1(data).toString(CryptoJS.enc.Hex);
                 // const hash = sha1.update(data).hex();
-                const localHash = sha1(data);
+                const localHash = await sha1(data);
 
                 //@ts-ignore
                 const prevHash = this.prevData.files[filePath];
@@ -364,26 +321,12 @@ export default class Cloudr extends Plugin {
                 const remoteContent = await this.webdavClient.get(remoteFilePath);
 
                 if (remoteContent.status === 200) {
-                    // console.log(res);
-                    //     //@ts-ignore
-                    //     const remoteChksm = res.data.props?.checksum
-                    // console.log(remoteContent)
-                    const downloadedContent = new TextDecoder().decode(remoteContent.data);
-
-                    const remoteHash = sha1(downloadedContent);
+                    const remoteHash = await sha1(remoteContent.data);
 
                     console.log("Local  ", localHash);
                     console.log("Prev   ", prevHash);
                     console.log("Remote ", remoteHash);
 
-                    // console.log(remoteChksm, " AND ",hash)
-
-                    // if (localHash !== remoteHash ){
-                    //     if (prevHash === undefined ||
-                    //         (prevHash === localHash && prevHash !== undefined)){
-
-                    //         }
-                    // }
                     console.log(Date.now());
                     console.log(file.stat.ctime);
 
@@ -453,8 +396,10 @@ export default class Cloudr extends Plugin {
 
     async test(button = true) {
         try {
-            this.setStatus("🧪");
-            this.show("🧪 Testing ...");
+            if (button) {
+                this.setStatus("🧪");
+                this.show("🧪 Testing ...");
+            }
 
             const existBool = await this.webdavClient.exists(this.settings.webdavPath);
             console.log("EXISTS: ", existBool);
@@ -475,7 +420,7 @@ export default class Cloudr extends Plugin {
             this.setError(true);
             return false;
         } finally {
-            this.setStatus("");
+            button && this.setStatus("");
         }
     }
 
@@ -484,23 +429,23 @@ export default class Cloudr extends Plugin {
             //disable status check if button = false for fullsync etc.
             this.setStatus("🔎");
             this.show("🔎 Checking ...");
-
-            this.test(false);
-
-            console.log("GAAAAAAAAAA");
+            
 
             try {
+            const response = await this.test(false);
+            if (!response){
+              throw new Error("Testing failed, can't continue Check action!") 
+            }
                 this.checkTime = Date.now();
 
                 const webdavPromise = this.checksum.generateWebdavHashTree(this.webdavClient, this.baseWebdav, this.settings.exclusions);
-
                 const localPromise = this.checksum.generateLocalHashTree(true);
 
                 // Use Promise.all to execute both promises simultaneously
                 const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
 
-                console.log("WEBDAV:", webdavFiles);
-                console.log("LOCAL", JSON.stringify(localFiles, null, 2));
+                log("WEBDAV:", webdavFiles);
+                log("LOCAL", JSON.stringify(localFiles, null, 2));
                 ///////// Check if valid response
 
                 const comparedFileTrees = await this.compare.compareFileTrees(
@@ -509,30 +454,26 @@ export default class Cloudr extends Plugin {
                     this.prevData,
                     this.settings.exclusions
                 );
-                console.log(JSON.stringify(comparedFileTrees, null, 2));
+                log(JSON.stringify(comparedFileTrees, null, 2));
                 this.fileTrees = comparedFileTrees;
 
                 button && (this.fileTreesEmpty() ? null : this.show("Finished checking files"));
                 // if (this.mobile){this.checkHidden = true;}
                 return true;
             } catch (error) {
-                console.log("CHECK ERROR: ", error);
+                console.error("CHECK ERROR: ", error);
                 button && this.show("CHECK ERROR: ", error);
-                console.error("CHECK", error);
-                // this.saveStateError(true)
-                // this.prevData.error = true
+
                 this.setError(true);
                 return error;
             } finally {
                 this.setStatus("");
             }
         } else {
-            console.log("Action currently active: ", this.status);
+            console.log("Checking not possible! Action currently active: ", this.status);
             button && this.show("Currently active: " + this.status);
         }
     }
-
-
 
     fileTreesEmpty(button = true) {
         const f = this.fileTrees;
@@ -585,14 +526,14 @@ export default class Cloudr extends Plugin {
             try {
                 this.prevData.files = await this.checksum.generateLocalHashTree(false);
 
-                console.log("SwagggG", this.prevData.files);
+                
                 this.prevData = {
                     date: Date.now(),
                     error: this.prevData.error,
                     files: this.prevData.files,
                     except: this.fileTrees.localFiles.except,
                 };
-                console.log("SwaggeeegG", this.prevData.files);
+                
                 await this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2));
                 console.log("saving successful!");
                 this.show("Saved current vault state!");
@@ -607,7 +548,7 @@ export default class Cloudr extends Plugin {
                 this.setStatus("");
             }
         } else {
-            console.log("Action currently active: ", this.status);
+            console.log("Action currently active: ", this.status, "\nCan't save right now!");
         }
     }
 
