@@ -10,7 +10,8 @@ export enum Status {
     TEST = "🧪",
     SAVE = "💾",
     PAUSE = "⏸️",
-    
+    OFFLINE = "📴"
+
     
 }
 

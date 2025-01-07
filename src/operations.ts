@@ -2,7 +2,7 @@ import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
 import { join, dirname, log } from "./util";
 import { normalizePath } from "obsidian";
-import { Controller, FileList } from "./const";
+import { Controller, FileList, Status } from "./const";
 
 const WEBDAV_HEADERS = { "Cache-Control": "no-cache, no-store, must-revalidate" };
 
@@ -114,60 +114,52 @@ export class Operations {
     /**
      * Delete files from WebDAV server
      */
-    async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: FileList, maxRetries = 2): Promise<void> {
-        if (!fileTree || Object.keys(fileTree).length === 0) {
-            console.log("No files to delete on WebDAV");
-            return;
-        }
+    async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: Record<string, string>): Promise<void> {
+      if (!fileTree || Object.keys(fileTree).length === 0) {
+          console.log("No files to delete on WebDAV");
+          return;
+      }
+      const maxRetries = 2;
+      const failedPaths: string[] = []
 
-        const failedDeletes: string[] = [];
+      const deleteFile = async (path: string): Promise<void> => {
+          const cleanPath = path.endsWith("/") ? path.replace(/\/$/, "") : path;
+          const fullPath = join(basePath, cleanPath);
 
-        const deleteFile = async (path: string): Promise<void> => {
-            const cleanPath = path.endsWith("/") ? path.replace(/\/$/, "") : path;
-            const fullPath = join(basePath, cleanPath);
 
-            for (let attempt = 1; attempt <= maxRetries; attempt++) {
-                try {
-                    const response = await client.delete(fullPath);
-                    if (!response) {
-                        if (!(await client.exists(fullPath))) {
-                            console.log(`File already deleted or doesn't exist: ${cleanPath}`);
-                            this.plugin.processed();
-                            return;
-                        } else {
-                            console.error(`Delete operation failed for ${cleanPath}`);
-                            failedDeletes.push(path);
-                            return;
-                        }
-                    }
-                    this.plugin.processed();
-                    return;
-                } catch (error) {
-                    if (attempt === maxRetries) {
-                        console.error(`Failed to delete ${cleanPath} after ${maxRetries} attempts:`, error);
-                        failedDeletes.push(path);
-                        return;
-                    }
-                    console.log(`Retry ${attempt}/${maxRetries} for deleting ${cleanPath}`);
-                    await new Promise((resolve) => setTimeout(resolve, 100 * attempt));
-                }
-            }
-        };
+          // Skip if file doesn't exist
 
-        // First attempt
-        await Promise.all(Object.keys(fileTree).map(deleteFile));
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+              try {
+                  const response = await client.delete(fullPath);
+                  if (!response) {
+                      if (!(await client.exists(fullPath))) {
+                          console.log(`File already deleted or doesn't exist: ${cleanPath}`);
+                          this.plugin.processed();
+                          return;
+                      } else {
+                          throw new Error(`Delete operation failed for ${cleanPath}`);
+                      }
+                  }
+                  // console.log(`Deleted from WebDAV: ${cleanPath}`);
+                  this.plugin.processed();
+                  return;
+              } catch (error) {
+                  if (attempt === maxRetries) {
+                      console.error(`Failed to delete ${cleanPath} after ${maxRetries} attempts:`, error);
+                      return;
+                  }
+                  console.log(`Retry ${attempt}/${maxRetries} for deleting ${cleanPath}`);
+                  // await new Promise((resolve) => setTimeout(resolve, 100 * attempt)); // Exponential backoff
+                  failedPaths.push(fullPath)
+              }
+          }
+      };
 
-        // Retry failed deletes if there are any
-        if (failedDeletes.length > 0) {
-            console.log(`Retrying ${failedDeletes.length} failed deletions...`);
-            // Wait a bit longer before retrying
-            await new Promise((resolve) => setTimeout(resolve, 1000));
+      await Promise.all(Object.keys(fileTree).map(deleteFile));
 
-            for (const path of failedDeletes) {
-                await deleteFile(path);
-            }
-        }
-    }
+      await Promise.all(failedPaths.map(deleteFile))
+  }
 
     /**
      * Delete files from local storage
@@ -265,10 +257,10 @@ export class Operations {
 
             if (!this.plugin.fileTrees) {
                 button && this.plugin.show("Checking files before operation...");
-                await this.plugin.check();
+                await this.check();
             }
 
-            this.plugin.setStatus("⏳");
+            this.plugin.setStatus(Status.SYNC);
 
             // Calculate total operations needed
             const operationsToCount = [];
@@ -403,19 +395,78 @@ export class Operations {
             await Promise.all(operations);
 
             button && this.plugin.show("Sync completed - checking again");
-            this.plugin.status = "🔎";
-            await this.plugin.check(true);
-            this.plugin.force = "save";
+            await this.check(true, true);
             await this.plugin.saveState();
             button && this.plugin.show("Done");
         } catch (error) {
             console.error("SYNC", error);
             button && this.plugin.show("SYNC Error: " + error);
             this.plugin.setError(true);
+            this.plugin.setStatus(Status.ERROR)
         } finally {
-            this.plugin.status = "";
-            this.plugin.setStatus("");
+            
+          // @ts-ignore
+          if (this.plugin.status !== Status.ERROR) {
+            this.plugin.setStatus(Status.OK);
+        }
             this.plugin.finished();
         }
     }
+
+
+
+async check(show = true, force = false) {
+  if (!force && this.plugin.status !== Status.NONE) {
+      show && this.plugin.show(`Checking not possible, currently ${this.plugin.status}`);
+      return;
+  }
+
+  this.plugin.setStatus(Status.CHECK);
+  show && this.plugin.show(`${Status.CHECK} Checking ...`);
+
+  try {
+      const response = await this.plugin.test(false);
+      if (!response) {
+          throw new Error("Testing failed, can't continue Check action!");
+      }
+
+      this.plugin.checkTime = Date.now();
+
+      const webdavPromise = this.plugin.checksum.generateWebdavHashTree(
+          this.plugin.webdavClient,
+          this.plugin.baseWebdav,
+          this.plugin.settings.exclusions
+      );
+      const localPromise = this.plugin.checksum.generateLocalHashTree(true);
+
+      const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
+
+      log("WEBDAV:", webdavFiles);
+      log("LOCAL", JSON.stringify(localFiles, null, 2));
+
+      const comparedFileTrees = await this.plugin.compare.compareFileTrees(
+          webdavFiles,
+          localFiles,
+          this.plugin.prevData,
+          this.plugin.settings.exclusions
+      );
+      log(JSON.stringify(comparedFileTrees, null, 2));
+      this.plugin.fileTrees = comparedFileTrees;
+
+      show && (this.plugin.fileTreesEmpty() ? null : this.plugin.show("Finished checking files"));
+      return true;
+  } catch (error) {
+      console.error("CHECK ERROR: ", error);
+      show && this.plugin.show("CHECK ERROR: " + error);
+      this.plugin.setError(true);
+      this.plugin.setStatus(Status.ERROR);
+      throw error;
+  } finally {
+      if (this.plugin.status !== Status.ERROR) {
+          this.plugin.setStatus(Status.NONE);
+      }
+  }
+}
+
+
 }

@@ -1,25 +1,19 @@
 import { App, Modal } from "obsidian";
 import Cloudr from "./main";
+import { Status } from "./const";
 
 export class FileTreeModal extends Modal {
-    // plugin: Cloudr;
-    // fileTrees: object;
-
     constructor(
         app: App,
         public plugin: Cloudr
     ) {
-        //public fileTrees: object) {
         super(app);
-        //   this.plugin = plugin;
-        // this.fileTrees = fileTrees;
     }
 
     onOpen() {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { titleEl, modalEl, contentEl, containerEl } = this;
 
-        // .item   .style.overflowY = "none"
         modalEl.style.overflowY = "hidden";
         modalEl.style.width = "100%";
         modalEl.style.height = "100%";
@@ -48,7 +42,7 @@ export class FileTreeModal extends Modal {
         });
         checkButton.addEventListener("click", () => {
             // this.plugin.show("Checking files ...")
-            this.plugin.check().then(() => {
+            this.plugin.operations.check().then(() => {
                 fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
         });
@@ -73,7 +67,7 @@ export class FileTreeModal extends Modal {
         errorButton.addEventListener("click", () => {
             this.plugin.show("Resetting Error status");
             this.plugin.prevData.error = false;
-            this.plugin.setStatus("");
+            this.plugin.setStatus(Status.NONE);
         });
 
         const saveButton = buttonDiv.createEl("button", {
@@ -93,18 +87,19 @@ export class FileTreeModal extends Modal {
             // this.plugin.show("Pulling files from server ...")
 
             // Regular pull
-            this.plugin.operations.sync({
-                local: {
-                },
-                webdav: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                    except: 1
-                }
-            }).then(() => {
-                fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
-            });
+            this.plugin.operations
+                .sync({
+                    local: {},
+                    webdav: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                        except: 1,
+                    },
+                })
+                .then(() => {
+                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                });
         });
 
         const syncButton = buttonDiv.createEl("button", {
@@ -113,22 +108,22 @@ export class FileTreeModal extends Modal {
         });
         syncButton.addEventListener("click", () => {
             // this.plugin.show("Synchronizing files with server ...")
-            this.plugin.operations.sync({
-                local: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-
-                },
-                webdav: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-
-                }
-            }).then(() => {
-                fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
-            });
+            this.plugin.operations
+                .sync({
+                    local: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                    },
+                    webdav: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                    },
+                })
+                .then(() => {
+                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                });
         });
 
         const pushButton = buttonDiv.createEl("button", {
@@ -137,17 +132,19 @@ export class FileTreeModal extends Modal {
         });
         pushButton.addEventListener("click", () => {
             // this.plugin.show("Pushing files to server ...")
-            this.plugin.operations.sync({
-                local: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                    except: 1
-                },
-                webdav: {}
-            }).then(() => {
-                fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
-            });
+            this.plugin.operations
+                .sync({
+                    local: {
+                        added: 1,
+                        deleted: 1,
+                        modified: 1,
+                        except: 1,
+                    },
+                    webdav: {},
+                })
+                .then(() => {
+                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                });
         });
 
         // Inverted buttons
@@ -158,19 +155,19 @@ export class FileTreeModal extends Modal {
         });
         pullInvertButton.addEventListener("click", () => {
             this.plugin.show("Inverted Pulling files from server ...");
-            this.plugin.operations.sync({
-                local: {
-
-                },
-                webdav: {
-                    added: -1,
-                    deleted: -1,
-                    modified: -1,
-                    except: -1
-                }
-            }).then(() => {
-                fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
-            });
+            this.plugin.operations
+                .sync({
+                    local: {},
+                    webdav: {
+                        added: -1,
+                        deleted: -1,
+                        modified: -1,
+                        except: -1,
+                    },
+                })
+                .then(() => {
+                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                });
         });
 
         const pushInvertButton = buttonDiv.createEl("button", {
@@ -179,19 +176,19 @@ export class FileTreeModal extends Modal {
         });
         pushInvertButton.addEventListener("click", () => {
             this.plugin.show("Inverted Pushing files to server ...");
-            this.plugin.operations.sync({
-                local: {
-                    added: -1,
-                    deleted: -1,
-                    modified: -1,
-                    except: -1
-                },
-                webdav: {
-
-                }
-            }).then(() => {
-                fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
-            });
+            this.plugin.operations
+                .sync({
+                    local: {
+                        added: -1,
+                        deleted: -1,
+                        modified: -1,
+                        except: -1,
+                    },
+                    webdav: {},
+                })
+                .then(() => {
+                    fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+                });
         });
 
         const containDiv = mainDiv.createEl("div");

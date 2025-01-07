@@ -113,16 +113,32 @@ export class WebDAVClient {
         return response.status === 201;
     }
 
-    async delete(path: string): Promise<boolean> {
-        const response = await requestUrl({
-            url: this.createFullUrl(path),
-            method: "DELETE",
-            headers: {
-                Authorization: this.createAuthHeader(),
-            },
-        });
+    // async delete(path: string): Promise<boolean> {
+    //     const response = await requestUrl({
+    //         url: this.createFullUrl(path),
+    //         method: "DELETE",
+    //         headers: {
+    //             Authorization: this.createAuthHeader(),
+    //         },
+    //     });
 
-        return response.status === 204;
+    //     return response.status === 204;
+    // }
+
+    async delete(path: string): Promise<number> {
+        try {
+            const response = await requestUrl({
+                url: this.createFullUrl(path),
+                method: "DELETE",
+                headers: {
+                    Authorization: this.createAuthHeader(),
+                },
+            });
+            return response.status;
+        } catch (error) {
+            console.error(`Delete failed for ${path}:`, error);
+            return error.status || 666;  // Return error status if available, else 666
+        }
     }
 
     async move(sourcePath: string, destinationPath: string, overwrite: boolean = true): Promise<RequestUrlResponse> {
