@@ -4,7 +4,6 @@ export enum Status {
     PULL = "⬇️",
     PUSH = "⬆️",
     SYNC = "⏳",
-    // OK = "✔️",
     ERROR = "❌",
     AUTO = "🔄",
     TEST = "🧪",

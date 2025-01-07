@@ -7,9 +7,7 @@ import { Compare } from "./compare";
 import { Operations } from "./operations";
 import { join, emptyObj, sha1, log } from "./util";
 import { launcher } from "./setup";
-import {FileList, FileTree, PreviousObject, Status }from "./const"
-
-
+import { FileList, FileTree, PreviousObject, Status } from "./const";
 
 export default class Cloudr extends Plugin {
     settings: CloudrSettings;
@@ -61,7 +59,7 @@ export default class Cloudr extends Plugin {
     // showLoading: boolean;
 
     onload() {
-  // onLayoutReady(){
+        // onLayoutReady(){
         launcher(this);
     }
 
@@ -206,7 +204,7 @@ export default class Cloudr extends Plugin {
                 // this.status = ;
 
                 // console.log("liveSync Inner");
-                this.setStatus(Status.SYNC)
+                this.setStatus(Status.SYNC);
                 try {
                     const file: TFile = abstractFile;
 
@@ -282,7 +280,7 @@ export default class Cloudr extends Plugin {
         if (this.status === Status.NONE && file instanceof TFile) {
             // this.lastLiveSync = Date.now()
             // this.status = "openPull";
-            this.setStatus(Status.PULL)
+            this.setStatus(Status.PULL);
 
             console.log("openPull Inner");
             try {
@@ -394,37 +392,36 @@ export default class Cloudr extends Plugin {
         this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2));
     }
 
-    async test(button = true) {
+    async test(show = true, force = false) {
+        if (!force && this.status !== Status.NONE) {
+            show && this.show(`Checking not possible, currently ${this.status}`);
+            return;
+        }
+
+        this.setStatus(Status.TEST);
+        show && this.show(`${Status.TEST} Testing ...`);
+
         try {
-            if (button) {
-                this.setStatus(Status.TEST);
-                this.show("🧪 Testing ...");
-            }
-
             const existBool = await this.webdavClient.exists(this.settings.webdavPath);
-            console.log("EXISTS: ", existBool);
+            log("EXISTS: ", existBool);
 
-            if (button) {
-                existBool ? this.show("Connection successful") : this.show("Connection failed");
+            if (existBool) {
+                show && this.show("Connection successful");
+                this.setStatus(Status.NONE);
+            } else {
+                this.show("Connection failed");
+                this.setStatus(Status.OFFLINE);
             }
-
             this.setError(!existBool);
             return existBool;
         } catch (error) {
-            // If an error occurs, log the error details
-            console.error(`WebDAV connection test failed. Error:`, error);
-            if (button) {
-                this.show(`WebDAV connection test failed. Error: ${error}`);
-            }
-            // this.prevData.error = true;
+            show && this.show(`WebDAV connection test failed. Error: ${error}`);
+
+            this.setStatus(Status.ERROR);
             this.setError(true);
             return false;
-        } finally {
-            button && this.setStatus(Status.NONE);
         }
     }
-
-
 
     fileTreesEmpty(button = true) {
         const f = this.fileTrees;
@@ -477,14 +474,13 @@ export default class Cloudr extends Plugin {
             try {
                 this.prevData.files = await this.checksum.generateLocalHashTree(false);
 
-                
                 this.prevData = {
                     date: Date.now(),
                     error: this.prevData.error,
                     files: this.prevData.files,
                     except: this.fileTrees.localFiles.except,
                 };
-                
+
                 await this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2));
                 console.log("saving successful!");
                 this.show("Saved current vault state!");
@@ -540,9 +536,9 @@ export default class Cloudr extends Plugin {
     async setStatus(status: Status, text?: string) {
         this.status = status;
 
-        if (text){
-          this.statusBar.setText(text)
-          return
+        if (text) {
+            this.statusBar.setText(text);
+            return;
         }
 
         if (this.connectionError) {
@@ -591,12 +587,11 @@ export default class Cloudr extends Plugin {
     }
 
     async displayModal() {
-      
-      if (!this.fileTrees){
-        await this.operations.check()
-      }
-      
-      new FileTreeModal(this.app,  this).open();
+        if (!this.fileTrees) {
+            await this.operations.check();
+        }
+
+        new FileTreeModal(this.app, this).open();
         // console.log(this.fileTrees)
     }
 
