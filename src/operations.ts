@@ -128,7 +128,7 @@ export class Operations {
   
           try {
               const response = await client.delete(fullPath);
-              console.log(response, typeof response)
+              // console.log(response, typeof response)
               //
               if (response !== 204 && response !== 404) {
                 console.log(fullPath, " Errorstatus: ",response)
