@@ -136,7 +136,7 @@ export class WebDAVClient {
             });
             return response.status;
         } catch (error) {
-            console.error(`Delete failed for ${path}:`, error);
+            //console.error(`Delete failed for ${path}:`, error);
             return error.status || 666;  // Return error status if available, else 666
         }
     }

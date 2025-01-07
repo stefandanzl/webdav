@@ -184,7 +184,7 @@ export default class Cloudr extends Plugin {
     async liveSyncCallback(abstractFile: TAbstractFile) {
         console.log("liveSync outer");
         if (abstractFile instanceof TFile) {
-            if (!this.status) {
+            if (this.status === Status.NONE) {
                 if (this.connectionError === false) {
                     // console.log(Date.now() - this.lastLiveSync)
                     if (Date.now() - this.lastLiveSync < 5000) {
@@ -240,7 +240,6 @@ export default class Cloudr extends Plugin {
                     this.prevData.files[filePath] = hash;
                     this.savePrevData();
 
-                    // this.status = ""
                     this.setStatus(Status.NONE);
                     this.connectionError = false;
                 } catch (error) {
@@ -252,7 +251,6 @@ export default class Cloudr extends Plugin {
                     this.lastLiveSync = Date.now();
                     // this.statusBar.setText("📴");
 
-                    // this.status = "";
                     this.setStatus(Status.ERROR);
                 }
             } else {
@@ -280,7 +278,7 @@ export default class Cloudr extends Plugin {
 
     async openPullCallback(file: TFile | null) {
         console.log("openPull outer");
-        if (!this.status && file instanceof TFile) {
+        if (this.status === Status.NONE && file instanceof TFile) {
             // this.lastLiveSync = Date.now()
             // this.status = "openPull";
             this.setStatus(Status.PULL)
@@ -473,7 +471,7 @@ export default class Cloudr extends Plugin {
                 return;
             }
         }
-        if (!this.status || this.force === action) {
+        if (this.status === Status.NONE || this.force === action) {
             this.setStatus(Status.SAVE);
             try {
                 this.prevData.files = await this.checksum.generateLocalHashTree(false);

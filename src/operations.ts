@@ -114,51 +114,59 @@ export class Operations {
     /**
      * Delete files from WebDAV server
      */
-    async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: Record<string, string>): Promise<void> {
+    async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: FileList): Promise<void> {
       if (!fileTree || Object.keys(fileTree).length === 0) {
           console.log("No files to delete on WebDAV");
           return;
       }
-      const maxRetries = 2;
-      const failedPaths: string[] = []
-
+  
+      const failedPaths: string[] = [];
+  
       const deleteFile = async (path: string): Promise<void> => {
           const cleanPath = path.endsWith("/") ? path.replace(/\/$/, "") : path;
           const fullPath = join(basePath, cleanPath);
-
-
-          // Skip if file doesn't exist
-
-          for (let attempt = 1; attempt <= maxRetries; attempt++) {
-              try {
-                  const response = await client.delete(fullPath);
-                  if (!response) {
-                      if (!(await client.exists(fullPath))) {
-                          console.log(`File already deleted or doesn't exist: ${cleanPath}`);
-                          this.plugin.processed();
-                          return;
-                      } else {
-                          throw new Error(`Delete operation failed for ${cleanPath}`);
-                      }
-                  }
-                  // console.log(`Deleted from WebDAV: ${cleanPath}`);
-                  this.plugin.processed();
+  
+          try {
+              const response = await client.delete(fullPath);
+              console.log(response, typeof response)
+              //
+              if (response !== 204 && response !== 404) {
+                console.log(fullPath, " Errorstatus: ",response)
+                  failedPaths.push(fullPath);
                   return;
-              } catch (error) {
-                  if (attempt === maxRetries) {
-                      console.error(`Failed to delete ${cleanPath} after ${maxRetries} attempts:`, error);
-                      return;
-                  }
-                  console.log(`Retry ${attempt}/${maxRetries} for deleting ${cleanPath}`);
-                  // await new Promise((resolve) => setTimeout(resolve, 100 * attempt)); // Exponential backoff
-                  failedPaths.push(fullPath)
               }
+              this.plugin.processed();
+          } catch (error) {
+              console.error(`Delete failed for ${cleanPath}:`, error);
+              failedPaths.push(fullPath);
           }
       };
-
+  
+      const retryDelete = async (path: string): Promise<void> => {
+          try {
+              if (await client.exists(path)) {
+                  const response = await client.delete(path);
+                  if (response) {
+                      this.plugin.processed();
+                      console.log(`Retry successful: ${path}`);
+                  }
+              } else {
+                  console.log(`File already deleted or doesn't exist: ${path}`);
+                  this.plugin.processed();
+              }
+          } catch (error) {
+              console.error(`Final delete attempt failed for ${path}:`, error);
+          }
+      };
+  
+      // First attempt for all files
       await Promise.all(Object.keys(fileTree).map(deleteFile));
-
-      await Promise.all(failedPaths.map(deleteFile))
+  
+      // Retry failed deletions
+      if (failedPaths.length > 0) {
+          console.log(`Retrying ${failedPaths.length} failed deletions...`);
+          await Promise.all(failedPaths.map(retryDelete));
+      }
   }
 
     /**
@@ -244,7 +252,7 @@ export class Operations {
             }
         }
 
-        if (this.plugin.status) {
+        if (this.plugin.status !== Status.NONE) {
             button && this.plugin.show(`Operation not possible, currently working on '${this.plugin.status}'`);
             return;
         }
@@ -407,7 +415,7 @@ export class Operations {
             
           // @ts-ignore
           if (this.plugin.status !== Status.ERROR) {
-            this.plugin.setStatus(Status.OK);
+            this.plugin.setStatus(Status.NONE)//Status.OK); war eigentlich so
         }
             this.plugin.finished();
         }

@@ -1,10 +1,10 @@
 export enum Status {
-    NONE = "",
+    NONE = "✔️",
     CHECK = "🔎",
     PULL = "⬇️",
     PUSH = "⬆️",
     SYNC = "⏳",
-    OK = "✔️",
+    // OK = "✔️",
     ERROR = "❌",
     AUTO = "🔄",
     TEST = "🧪",
