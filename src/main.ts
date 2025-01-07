@@ -61,6 +61,7 @@ export default class Cloudr extends Plugin {
     // showLoading: boolean;
 
     onload() {
+  // onLayoutReady(){
         launcher(this);
     }
 
@@ -462,7 +463,7 @@ export default class Cloudr extends Plugin {
 
     // default true in order for except to be updated
     async saveState(check = false) {
-        console.log("save state");
+        log("save state");
         const action = "save";
         if (this.prevData.error) {
             if (this.force !== action) {
@@ -520,7 +521,7 @@ export default class Cloudr extends Plugin {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     calcTotal(...rest: Record<string, any>[]) {
-        console.log("REST: ", rest);
+        log("REST: ", rest);
         this.loadingProcessed = 0;
         let total = 0;
         for (const i of rest) {
@@ -538,6 +539,11 @@ export default class Cloudr extends Plugin {
 
     async setStatus(status: Status, text?: string) {
         this.status = status;
+
+        if (text){
+          this.statusBar.setText(text)
+          return
+        }
 
         if (this.connectionError) {
             this.statusBar.setText(Status.OFFLINE);
@@ -585,12 +591,13 @@ export default class Cloudr extends Plugin {
     }
 
     async displayModal() {
-        if (!this.fileTrees){
-            await this.operations.check()
-        }
-
+      
+      if (!this.fileTrees){
+        await this.operations.check()
+      }
+      
+      new FileTreeModal(this.app,  this).open();
         // console.log(this.fileTrees)
-        new FileTreeModal(this.app, this).open();
     }
 
     // eslint-disable-next-line @typescript-eslint/no-inferrable-types
