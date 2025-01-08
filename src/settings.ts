@@ -64,11 +64,9 @@ export class CloudrSettingsTab extends PluginSettingTab {
             .setDesc("Click Button to test Server's connection")
             .addButton((button) =>
                 button
-                    .onClick(() => {
-                        this.plugin.setClient().then(() => {
-                            this.plugin.test();
-
-                            button.setButtonText(this.plugin.prevData.error ? "FAIL" : "OK");
+                    .onClick(async () => {
+                        this.plugin.setClient().then(async () => {
+                            button.setButtonText((await this.plugin.operations.test(true)) ? "OK" : "FAIL");
                             // if( this.plugin.message){
                             //     // nothing yet
                             // }
@@ -88,7 +86,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                         this.plugin.settings.webdavPath = value.replace(/\\/g, "/");
                         await this.plugin.saveSettings();
                         await this.plugin.setBaseWebdav();
-                        this.plugin.test();
+                        this.plugin.operations.test();
                     })
             );
 
@@ -151,7 +149,6 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     })
             );
 
-
         new Setting(containerEl)
             .setName("Mod Sync")
             .setDesc("Enable Synchronization on modification")
@@ -162,7 +159,6 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     await this.plugin.saveSettings();
                 })
             );
-
 
         new Setting(containerEl)
             .setName("Auto Interval Sync")

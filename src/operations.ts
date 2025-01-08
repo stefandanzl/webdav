@@ -242,6 +242,96 @@ export class Operations {
         }
     }
 
+    async test(show = true, force = false) {
+        // if (!force && (this.status !== Status.NONE && this.status !== Status.OFFLINE )) {
+        //     show && this.show(`Testing not possible, currently ${this.status}`);
+        //     return;
+        // }
+
+        // show && this.setStatus(Status.TEST);
+        // show && this.show(`${Status.TEST} Testing ...`);
+
+        try {
+            const existBool = await this.plugin.webdavClient.exists(this.plugin.settings.webdavPath);
+            log("EXISTS: ", existBool);
+
+            if (existBool) {
+                show && this.plugin.show("Connection successful");
+                show && this.plugin.setStatus(Status.NONE)
+                // this.plugin.setStatus(Status.NONE);
+                return true;
+            }
+            show && this.plugin.show("Connection failed");
+            this.plugin.setStatus(Status.OFFLINE);
+
+            // this.plugin.setError(!existBool);  // THIS WAS THE ISSUE
+            
+            return false;
+        } catch (error) {
+            show && this.plugin.show(`WebDAV connection test failed. Error: ${error}`);
+            console.log("Failed miserably");
+            this.plugin.setStatus(Status.ERROR);
+            this.plugin.setError(true);
+            return false;
+        }
+    }
+
+    async check(show = true, force = false) {
+        if (!force && this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
+            show && this.plugin.show(`Checking not possible, currently ${this.plugin.status}`);
+            return;
+        }
+
+        this.plugin.setStatus(Status.CHECK);
+        show && this.plugin.show(`${Status.CHECK} Checking ...`);
+
+        let response;
+        try {
+            response = await this.test(false, true);
+            if (!response) {
+                // throw new Error("Testing failed, can't continue Check action!");
+                log("Testing failed, can't continue Check action!");
+                return false;
+            }
+
+            this.plugin.checkTime = Date.now();
+
+            const webdavPromise = this.plugin.checksum.generateWebdavHashTree(
+                this.plugin.webdavClient,
+                this.plugin.baseWebdav,
+                this.plugin.settings.exclusions
+            );
+            const localPromise = this.plugin.checksum.generateLocalHashTree(true);
+
+            const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
+
+            log("WEBDAV:", webdavFiles);
+            log("LOCAL", JSON.stringify(localFiles, null, 2));
+
+            const comparedFileTrees = await this.plugin.compare.compareFileTrees(
+                webdavFiles,
+                localFiles,
+                this.plugin.prevData,
+                this.plugin.settings.exclusions
+            );
+            log(JSON.stringify(comparedFileTrees, null, 2));
+            this.plugin.fileTrees = comparedFileTrees;
+            // if (this.plugin.modal) {
+            //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+            // }
+            this.plugin.checkTime = Date.now();
+
+            show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
+            this.plugin.setStatus(Status.NONE);
+            return true;
+        } catch (error) {
+            console.error("CHECK ERROR: ", error);
+            show && this.plugin.show("CHECK ERROR: " + error);
+            this.plugin.setError(true);
+            response ? this.plugin.setStatus(Status.ERROR) : this.plugin.setStatus(Status.OFFLINE);
+            throw error;
+        }
+    }
     async sync(controller: Controller, show = true) {
         if (this.plugin.prevData.error) {
             const action = "sync";
@@ -253,7 +343,7 @@ export class Operations {
         }
 
         try {
-            if (!(await this.plugin.test(false))) {
+            if (!(await this.test(false))) {
                 show && this.plugin.show("Connection Problem detected!");
                 return;
             }
@@ -264,7 +354,11 @@ export class Operations {
             }
             if (!this.plugin.fileTrees) {
                 show && this.plugin.show("Checking files before operation...");
-                await this.check(show);
+                const response = await this.check(show);
+                console.log("SYNC CHECK FAIL CORRECT");
+                if (!response) {
+                    return;
+                }
             }
 
             this.plugin.setStatus(Status.SYNC);
@@ -419,65 +513,10 @@ export class Operations {
             this.plugin.setStatus(Status.ERROR);
         } finally {
             // @ts-ignore
-            if (this.plugin.status !== Status.ERROR) {
-                this.plugin.setStatus(Status.NONE); //Status.OK); war eigentlich so
-            }
-            this.plugin.finished();
-        }
-    }
-
-    async check(show = true, force = false) {
-        if (!force && this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
-            show && this.plugin.show(`Checking not possible, currently ${this.plugin.status}`);
-            return;
-        }
-
-        this.plugin.setStatus(Status.CHECK);
-        show && this.plugin.show(`${Status.CHECK} Checking ...`);
-
-        let response;
-        try {
-            response = await this.plugin.test(false, true);
-            if (!response) {
-                throw new Error("Testing failed, can't continue Check action!");
-            }
-
-            this.plugin.checkTime = Date.now();
-
-            const webdavPromise = this.plugin.checksum.generateWebdavHashTree(
-                this.plugin.webdavClient,
-                this.plugin.baseWebdav,
-                this.plugin.settings.exclusions
-            );
-            const localPromise = this.plugin.checksum.generateLocalHashTree(true);
-
-            const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
-
-            log("WEBDAV:", webdavFiles);
-            log("LOCAL", JSON.stringify(localFiles, null, 2));
-
-            const comparedFileTrees = await this.plugin.compare.compareFileTrees(
-                webdavFiles,
-                localFiles,
-                this.plugin.prevData,
-                this.plugin.settings.exclusions
-            );
-            log(JSON.stringify(comparedFileTrees, null, 2));
-            this.plugin.fileTrees = comparedFileTrees;
-            // if (this.plugin.modal) {
-            //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+            // if (this.plugin.status !== Status.ERROR) {
+            //     this.plugin.setStatus(Status.NONE); //Status.OK); war eigentlich so
             // }
-            this.plugin.checkTime = Date.now();
-
-            show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
-            this.plugin.setStatus(Status.NONE);
-            return true;
-        } catch (error) {
-            console.error("CHECK ERROR: ", error);
-            show && this.plugin.show("CHECK ERROR: " + error);
-            this.plugin.setError(true);
-            response ? this.plugin.setStatus(Status.ERROR) : this.plugin.setStatus(Status.OFFLINE);
-            throw error;
+            this.plugin.finished();
         }
     }
 }

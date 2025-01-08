@@ -33,3 +33,6 @@ tasks:
   research:
     cmds:
       - node tests/exclude/research.js
+  minify:
+    cmds:
+      - terser main.js -o main.min.js

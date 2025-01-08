@@ -94,7 +94,10 @@ export class WebDAVClient {
             if (error.status === 404) {
                 return false;
             }
-            throw error; // Rethrow other errors
+            // throw error; // Rethrow other errors
+
+            // console.error(error)
+            return false
         }
     }
 

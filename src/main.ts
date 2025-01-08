@@ -1,13 +1,13 @@
 import { TFile, TAbstractFile, Notice, Plugin } from "obsidian";
 import { WebDAVClient } from "./webdav";
-import {  } from "./settings";
+import {} from "./settings";
 import { FileTreeModal } from "./modal";
 import { Checksum } from "./checksum";
 import { Compare } from "./compare";
 import { Operations } from "./operations";
 import { join, sha1, log } from "./util";
 import { launcher } from "./setup";
-import { FileList, FileTree, PreviousObject, Status,CloudrSettings, DEFAULT_SETTINGS } from "./const";
+import { FileList, FileTree, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS } from "./const";
 
 export default class Cloudr extends Plugin {
     settings: CloudrSettings;
@@ -57,7 +57,6 @@ export default class Cloudr extends Plugin {
         launcher(this);
     }
 
- 
     async setClient() {
         try {
             this.webdavClient = this.operations.configWebdav(this.settings.url, this.settings.username, this.settings.password);
@@ -83,23 +82,29 @@ export default class Cloudr extends Plugin {
         if (this.settings.autoSync) {
             this.intervalId = window.setInterval(async () => {
                 log("AUTOSYNC INTERVAL TRIGGERED");
-              // if (Date.now() - this.checkTime > 30*1000){
+                // if (Date.now() - this.checkTime > 30*1000){
 
-              await this.operations.check(false);
+                if (!(await this.operations.check(false))) {
+                    
+                    return;
+                }
 
-                await this.operations.sync({
-                    local: {
-                        added: 1,
-                        deleted: 1,
-                        modified: 1,
+                await this.operations.sync(
+                    {
+                        local: {
+                            added: 1,
+                            deleted: 1,
+                            modified: 1,
+                        },
+                        webdav: {
+                            added: 1,
+                            deleted: 1,
+                            modified: 1,
+                        },
                     },
-                    webdav: {
-                        added: 1,
-                        deleted: 1,
-                        modified: 1,
-                    },
-                }, false);
-              // }
+                    false
+                );
+                // }
             }, this.settings.autoSyncInterval * 1000);
         }
     }
@@ -214,45 +219,11 @@ export default class Cloudr extends Plugin {
         }
     }
 
-
     async errorWrite() {
         // this.prevData.error = true;
         this.setError(true);
         this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2));
     }
-
-    async test(show = true, force = false) {
-        // if (!force && (this.status !== Status.NONE && this.status !== Status.OFFLINE )) {
-        //     show && this.show(`Testing not possible, currently ${this.status}`);
-        //     return;
-        // }
-
-        // show && this.setStatus(Status.TEST);
-        // show && this.show(`${Status.TEST} Testing ...`);
-
-        try {
-            const existBool = await this.webdavClient.exists(this.settings.webdavPath);
-            log("EXISTS: ", existBool);
-
-            if (existBool) {
-                show && this.show("Connection successful");
-                // this.setStatus(Status.NONE);
-            } else {
-                this.show("Connection failed");
-                this.setStatus(Status.OFFLINE);
-            }
-            this.setError(!existBool);
-            return existBool;
-        } catch (error) {
-            show && this.show(`WebDAV connection test failed. Error: ${error}`);
-
-            this.setStatus(Status.ERROR);
-            this.setError(true);
-            return false;
-        }
-    }
-
-
 
     async setError(error: boolean) {
         this.prevData.error = error;
@@ -274,7 +245,7 @@ export default class Cloudr extends Plugin {
                 return;
             }
         }
-        if (this.status === Status.NONE && !this.prevData.error ) {
+        if (this.status === Status.NONE && !this.prevData.error) {
             this.setStatus(Status.SAVE);
             try {
                 this.prevData.files = await this.checksum.generateLocalHashTree(false);
@@ -300,7 +271,7 @@ export default class Cloudr extends Plugin {
                 this.setStatus(Status.NONE);
             }
         } else {
-          this.show(`Saving not possible because of ${this.status} \nplease clear Error in Control Panel`)
+            this.show(`Saving not possible because of ${this.status} \nplease clear Error in Control Panel`);
             console.log("Action currently active: ", this.status, "\nCan't save right now!");
         }
     }
@@ -393,17 +364,16 @@ export default class Cloudr extends Plugin {
     }
 
     async displayModal() {
-      this.modal = new FileTreeModal(this.app, this)
-      this.modal.open();
+        this.modal = new FileTreeModal(this.app, this);
+        this.modal.open();
 
         if (!this.fileTrees) {
             const response = await this.operations.check();
-            if (response){
-              this.modal.fileTreeDiv.setText(JSON.stringify(this.fileTrees, null, 2));
+            if (response) {
+                this.modal.fileTreeDiv.setText(JSON.stringify(this.fileTrees, null, 2));
             } else {
-              this.modal.fileTreeDiv.setText("Checking failed!")
+                this.modal.fileTreeDiv.setText("Checking failed!");
             }
-            
         }
     }
 
