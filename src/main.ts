@@ -173,7 +173,7 @@ export default class Cloudr extends Plugin {
                         delete this.liveSyncTimeouts[filePath];
                     }
     
-                    console.log(filePath);
+                this.log(filePath);
                     const data = await this.app.vault.readBinary(file);
                     const hash = await sha1(data);
     
