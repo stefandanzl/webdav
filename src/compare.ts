@@ -1,5 +1,5 @@
 import Cloudr from "./main";
-import { extname, log } from "./util";
+import { extname } from "./util";
 import { FileTree, FileList , PreviousObject, Exclusions} from "./const";
 
 export class Compare {
@@ -96,7 +96,7 @@ export class Compare {
             if (!current.hasOwnProperty(file)) {
                 // The key is not in the current object
                 deleted[file] = previous[file];
-                log("HAAAA ", file);
+                this.plugin.log("HAAAA ", file);
             }
         }
 
@@ -190,17 +190,17 @@ export class Compare {
             try {
                 prevFileTree.files = this.filterExclusions(prevFileTree.files, exclusions);
 
-                log("PREV", prevFileTree);
-                log("WEBD", webdavFiles);
-                log("LOC", localFiles);
+                this.plugin.log("PREV", prevFileTree);
+                this.plugin.log("WEBD", webdavFiles);
+                this.plugin.log("LOC", localFiles);
 
                 const webdavFilesBranch = await this.comparePreviousFileTree(prevFileTree, webdavFiles);
 
-                log("webdavFilesBranch", webdavFilesBranch);
+                this.plugin.log("webdavFilesBranch", webdavFilesBranch);
 
                 // const localFilesPromise = await this.comparePreviousFileTree(prevFileTree, localFiles);
                 const localFilesBranch = await this.comparePreviousFileTree(prevFileTree, localFiles);
-                log("localFilesBranch", localFilesBranch);
+                this.plugin.log("localFilesBranch", localFilesBranch);
 
                 ({ webdavMatch, localMatch } = this.compareFileTreesExcept(webdavFilesBranch, localFilesBranch));
                 // [webdavFilesBranch, localFilesBranch] = await Promise.all([webdavFilesPromise, localFilesPromise]);

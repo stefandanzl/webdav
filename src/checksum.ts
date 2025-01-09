@@ -1,6 +1,6 @@
 import { WebDAVClient } from "./webdav";
 import Cloudr from "./main";
-import { extname, sha1, log } from "./util";
+import { extname, sha1 } from "./util";
 import { TAbstractFile, TFile, TFolder, normalizePath } from "obsidian";
 import { FileList, WebDAVDirectoryItem, Exclusions } from "./const";
 
@@ -207,9 +207,9 @@ export class Checksum {
         try {
             const exists = await webdavClient.exists(rootFolder);
             if (exists) {
-                log("ROOTFOLDER DOES EXIST");
+                this.plugin.log("ROOTFOLDER DOES EXIST");
             } else {
-                log("DOES NOT EXIST");
+                this.plugin.log("DOES NOT EXIST");
                 await webdavClient.createDirectory(rootFolder);
             }
         } catch (error) {
@@ -233,7 +233,7 @@ export class Checksum {
 
             const webdavHashtree = this.removeBase(refinedResult, rootFolder);
             // writeFileSync("out/output-webdav2.json", JSON.stringify(refinedResult, null, 2));
-            log("webdav: ", webdavHashtree);
+            this.plugin.log("webdav: ", webdavHashtree);
             this.plugin.webdavFiles = webdavHashtree;
             return webdavHashtree;
         } catch (error) {

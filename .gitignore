@@ -26,3 +26,4 @@ data.json
 prevdata.json
 
 tests/exclude
+*.min.js

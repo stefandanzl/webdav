@@ -1,5 +1,7 @@
-
 import { FileTree } from "./const";
+
+
+
 export const join = (...args: string[]) => {
     const separator = "/"; // Change this to '\\' for backslash on Windows
     return args.join(separator).replace(/\/\//g, "/");
@@ -51,48 +53,34 @@ export const dirname = (filePath: string): string => {
     return filePath.substring(0, lastSeparatorIndex);
 };
 
-
 export async function sha1(buffer: ArrayBuffer): Promise<string> {
-  const hashBuffer = await crypto.subtle.digest('SHA-1', buffer);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
-  return hashHex;
+    const hashBuffer = await crypto.subtle.digest("SHA-1", buffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+    return hashHex;
 }
 
-export function log(...text: string[] | unknown[]) {
-  const doLog= false;
-  if (doLog){
-    console.log(...text);
-  }
-}
+export function fileTreesEmpty({ localFiles, webdavFiles }: { localFiles: FileTree; webdavFiles: FileTree }): boolean {
+    const hasNoRegularChanges = [
+        localFiles.added,
+        localFiles.deleted,
+        localFiles.modified,
+        webdavFiles.added,
+        webdavFiles.deleted,
+        webdavFiles.modified,
+    ].every((record) => Object.keys(record).length === 0);
 
+    if (!hasNoRegularChanges) {
+        return false;
+    }
 
+    const hasNoExceptions = [webdavFiles.except, localFiles.except].every((record) => Object.keys(record).length === 0);
 
-export function fileTreesEmpty({ localFiles, webdavFiles }: { localFiles: FileTree, webdavFiles: FileTree }): boolean {
+    if (hasNoExceptions) {
+        // show && this.show("Nothing to sync");
+        return true;
+    }
 
-  const hasNoRegularChanges = [
-      localFiles.added,
-      localFiles.deleted,
-      localFiles.modified,
-      webdavFiles.added,
-      webdavFiles.deleted,
-      webdavFiles.modified
-  ].every(record => Object.keys(record).length === 0);
-
-  if (!hasNoRegularChanges) {
-      return false;
-  }
-
-  const hasNoExceptions = [
-      webdavFiles.except,
-      localFiles.except
-  ].every(record => Object.keys(record).length === 0);
-
-  if (hasNoExceptions) {
-      // show && this.show("Nothing to sync");
-      return true;
-  }
-
-  // show && this.show("Please open control panel to solve your file exceptions");
-  return true;
+    this.show("Please open control panel to solve your file exceptions");
+    return true;
 }

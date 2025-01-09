@@ -1,6 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import Cloudr from "./main";
-import { log } from "./util";
+
 
 export class CloudrSettingsTab extends PluginSettingTab {
     plugin: Cloudr;
@@ -115,7 +115,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     .onChange(async (value) => {
                         value = value.replace(/\r/g, "").replace(/\\/g, "/");
                         this.plugin.settings.exclusions.directories = value.split("\n");
-                        log(JSON.stringify(this.plugin.settings.exclusions));
+                        this.plugin.log(JSON.stringify(this.plugin.settings.exclusions));
                         await this.plugin.saveSettings();
                     })
             );

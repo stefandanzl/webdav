@@ -1,10 +1,6 @@
-/* eslint-disable @typescript-eslint/no-inferrable-types */
-
 import { DOMParser } from "xmldom";
 import { requestUrl, RequestUrlResponse } from "obsidian";
 import { WebDAVDirectoryItem } from "./const";
-
-
 
 export class WebDAVClient {
     private baseUrl: string;
@@ -97,23 +93,26 @@ export class WebDAVClient {
             // throw error; // Rethrow other errors
 
             // console.error(error)
-            return false
+            return false;
         }
     }
 
     async put(path: string, content: string | ArrayBuffer): Promise<boolean> {
-        const response = await requestUrl({
-            url: this.createFullUrl(path),
-            method: "PUT",
-            headers: {
-                Authorization: this.createAuthHeader(),
-                "Content-Type": content instanceof ArrayBuffer ? "application/octet-stream" : "text/plain",
-                // Translate: "f", // Tell WebDAV not to do URL translation
-            },
-            body: content,
-        });
-
-        return response.status === 201;
+        try {
+            const response = await requestUrl({
+                url: this.createFullUrl(path),
+                method: "PUT",
+                headers: {
+                    Authorization: this.createAuthHeader(),
+                    "Content-Type": content instanceof ArrayBuffer ? "application/octet-stream" : "text/plain",
+                    // Translate: "f", // Tell WebDAV not to do URL translation
+                },
+                body: content,
+            });
+            return response.status === 201;
+        } catch (error) {
+            return false;
+        }
     }
 
     // async delete(path: string): Promise<boolean> {
@@ -140,11 +139,11 @@ export class WebDAVClient {
             return response.status;
         } catch (error) {
             //console.error(`Delete failed for ${path}:`, error);
-            return error.status || 666;  // Return error status if available, else 666
+            return error.status || 666; // Return error status if available, else 666
         }
     }
 
-    async move(sourcePath: string, destinationPath: string, overwrite: boolean = true): Promise<RequestUrlResponse> {
+    async move(sourcePath: string, destinationPath: string, overwrite = true): Promise<RequestUrlResponse> {
         return await requestUrl({
             url: this.createFullUrl(sourcePath),
             method: "MOVE",
@@ -156,7 +155,7 @@ export class WebDAVClient {
         });
     }
 
-    async copy(sourcePath: string, destinationPath: string, overwrite: boolean = true): Promise<RequestUrlResponse> {
+    async copy(sourcePath: string, destinationPath: string, overwrite = true): Promise<RequestUrlResponse> {
         return await requestUrl({
             url: this.createFullUrl(sourcePath),
             method: "COPY",
@@ -183,7 +182,7 @@ export class WebDAVClient {
         return response.status === 201;
     }
 
-    async getDirectory(path: string = "/", depth: "0" | "1" | "infinity" = "1"): Promise<WebDAVDirectoryItem[]> {
+    async getDirectory(path = "/", depth: "0" | "1" | "infinity" = "1"): Promise<WebDAVDirectoryItem[]> {
         const response = await this.propfind(path, depth);
         const parser = new DOMParser();
         const doc = parser.parseFromString(response.text, "text/xml");

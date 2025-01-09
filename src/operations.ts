@@ -1,6 +1,6 @@
 import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
-import { join, dirname, log, fileTreesEmpty } from "./util";
+import { join, dirname, fileTreesEmpty } from "./util";
 import { normalizePath } from "obsidian";
 import { Controller, FileList, Status } from "./const";
 
@@ -31,7 +31,7 @@ export class Operations {
      */
     async downloadFiles(webdavClient: WebDAVClient, filesMap: FileList, remoteBasePath: string): Promise<void> {
         if (!filesMap || Object.keys(filesMap).length === 0) {
-            log("No files to download");
+            this.plugin.log("No files to download");
             return;
         }
 
@@ -78,7 +78,7 @@ export class Operations {
      */
     async uploadFiles(webdavClient: WebDAVClient, fileChecksums: FileList, remoteBasePath: string): Promise<void> {
         if (!fileChecksums || Object.keys(fileChecksums).length === 0) {
-            log("No files to upload");
+            this.plugin.log("No files to upload");
             return;
         }
 
@@ -105,7 +105,7 @@ export class Operations {
 
             await webdavClient.put(remoteFilePath, fileContent);
             this.plugin.processed();
-            log(`Uploaded: ${localFilePath} to ${remoteFilePath}`);
+            this.plugin.log(`Uploaded: ${localFilePath} to ${remoteFilePath}`);
         } catch (error) {
             console.error(`Error uploading ${localFilePath}:`, error);
         }
@@ -116,7 +116,7 @@ export class Operations {
      */
     async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: FileList): Promise<void> {
         if (!fileTree || Object.keys(fileTree).length === 0) {
-            log("No files to delete on WebDAV");
+            this.plugin.log("No files to delete on WebDAV");
             return;
         }
 
@@ -174,7 +174,7 @@ export class Operations {
      */
     async deleteFilesLocal(fileTree: FileList): Promise<void> {
         if (!fileTree || Object.keys(fileTree).length === 0) {
-            log("No files to delete locally");
+            this.plugin.log("No files to delete locally");
             return;
         }
 
@@ -253,11 +253,11 @@ export class Operations {
 
         try {
             const existBool = await this.plugin.webdavClient.exists(this.plugin.settings.webdavPath);
-            log("EXISTS: ", existBool);
+            this.plugin.log("EXISTS: ", existBool);
 
             if (existBool) {
                 show && this.plugin.show("Connection successful");
-                show && this.plugin.setStatus(Status.NONE)
+                show && this.plugin.setStatus(Status.NONE);
                 // this.plugin.setStatus(Status.NONE);
                 return true;
             }
@@ -265,11 +265,11 @@ export class Operations {
             this.plugin.setStatus(Status.OFFLINE);
 
             // this.plugin.setError(!existBool);  // THIS WAS THE ISSUE
-            
+
             return false;
         } catch (error) {
             show && this.plugin.show(`WebDAV connection test failed. Error: ${error}`);
-            console.log("Failed miserably");
+            console.error("Failed miserably", error);
             this.plugin.setStatus(Status.ERROR);
             this.plugin.setError(true);
             return false;
@@ -290,7 +290,7 @@ export class Operations {
             response = await this.test(false, true);
             if (!response) {
                 // throw new Error("Testing failed, can't continue Check action!");
-                log("Testing failed, can't continue Check action!");
+                this.plugin.log("Testing failed, can't continue Check action!");
                 return false;
             }
 
@@ -305,8 +305,8 @@ export class Operations {
 
             const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
 
-            log("WEBDAV:", webdavFiles);
-            log("LOCAL", JSON.stringify(localFiles, null, 2));
+            this.plugin.log("WEBDAV:", webdavFiles);
+            this.plugin.log("LOCAL", localFiles);
 
             const comparedFileTrees = await this.plugin.compare.compareFileTrees(
                 webdavFiles,
@@ -314,7 +314,7 @@ export class Operations {
                 this.plugin.prevData,
                 this.plugin.settings.exclusions
             );
-            log(JSON.stringify(comparedFileTrees, null, 2));
+            this.plugin.log(JSON.stringify(comparedFileTrees, null, 2));
             this.plugin.fileTrees = comparedFileTrees;
             // if (this.plugin.modal) {
             //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
@@ -335,11 +335,8 @@ export class Operations {
     async sync(controller: Controller, show = true) {
         if (this.plugin.prevData.error) {
             const action = "sync";
-            if (this.plugin.force !== action) {
-                this.plugin.setForce(action);
-                show && this.plugin.show("Error detected - please clear in control panel or force action by retriggering " + action);
-                return;
-            }
+            show && this.plugin.show("Error detected - please clear in control panel or force action by retriggering " + action);
+            return;
         }
 
         try {

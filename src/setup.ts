@@ -1,14 +1,14 @@
-import Cloudr from "./main";
+import Cloudr  from "./main";
 import { CloudrSettingsTab } from "./settings";
 import { Compare } from "./compare";
 import { Checksum } from "./checksum";
 import { Operations } from "./operations";
 import { Platform } from "obsidian";
 import { Status } from "./const";
-import { log } from "./util";
 
 export async function launcher(plugin: Cloudr) {
     await plugin.loadSettings();
+    plugin.doLog = false;
 
     // plugin adds a settings tab so the user can configure various aspects of the plugin
     plugin.addSettingTab(new CloudrSettingsTab(plugin.app, plugin));
@@ -18,8 +18,7 @@ export async function launcher(plugin: Cloudr) {
     plugin.operations = new Operations(plugin);
 
     plugin.mobile = Platform.isMobileApp;
-    plugin.connectionError = false;
-    plugin.testVal = false
+    plugin.testVal = false;
     plugin.settings.exclusionsOverride = false;
     plugin.setBaseWebdav();
     plugin.prevPath = `${plugin.app.vault.configDir}/plugins/webdav/prevdata.json`;
@@ -75,8 +74,8 @@ export async function launcher(plugin: Cloudr) {
         // prevData.date = new Date(prevData.date)
         // plugin.prevData = prevData
 
-        log("PREVDATA LOADED: ", plugin.prevData);
-    } catch {
+        plugin.log("PREVDATA LOADED: ", plugin.prevData);
+    } catch (error) {
         plugin.prevData = {
             error: true,
             files: {},
@@ -85,8 +84,8 @@ export async function launcher(plugin: Cloudr) {
         };
 
         plugin.app.vault.adapter.write(plugin.prevPath, JSON.stringify(plugin.prevData, null, 2));
-        console.error("ERROR LOADING PREVIOUS DATA! RESET prevdata.json to {error: true, files: {}} ");
-        plugin.show("Failed to read previous data\nThis is to be expected if the plugin is new");
+        console.error("ERROR LOADING PREVIOUS DATA! RESET prevdata.json to {error: true, files: {}} \n", error);
+        plugin.show("Failed to read previous data\nThis is to be expected if the plugin is new", 5000);
     }
 
     // plugin adds a status bar item to the bottom of the app. Does not work on mobile apps.
@@ -226,5 +225,4 @@ export async function launcher(plugin: Cloudr) {
     if (plugin.settings.autoSync) {
         plugin.setAutoSync();
     }
-
 }

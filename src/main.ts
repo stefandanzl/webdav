@@ -5,11 +5,12 @@ import { FileTreeModal } from "./modal";
 import { Checksum } from "./checksum";
 import { Compare } from "./compare";
 import { Operations } from "./operations";
-import { join, sha1, log } from "./util";
+import { join, sha1 } from "./util";
 import { launcher } from "./setup";
 import { FileList, FileTree, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS } from "./const";
 
 export default class Cloudr extends Plugin {
+    doLog: boolean;
     settings: CloudrSettings;
     compare: Compare;
     checksum: Checksum;
@@ -35,15 +36,14 @@ export default class Cloudr extends Plugin {
     intervalId: number;
     status: Status;
     message: string;
-    lastSync: number;
+    lastFileEdited: string;
 
     lastLiveSync: number;
     liveSyncTimeouts: Record<string, NodeJS.Timeout | null> = {};
-    connectionError: boolean;
 
     notice: Notice;
     pause: boolean;
-    force: string;
+    
     mobile: boolean;
     localFiles: FileList;
     webdavFiles: FileList;
@@ -55,6 +55,17 @@ export default class Cloudr extends Plugin {
 
     onload() {
         launcher(this);
+    }
+
+    log(...text: string[] | unknown[]) {
+        /**
+         * Set this value for excessive log output
+         * 
+         */
+        // const doLog = true;
+        if (this.doLog) {
+            console.log(...text);
+        }
     }
 
     async setClient() {
@@ -73,7 +84,7 @@ export default class Cloudr extends Plugin {
         } else {
             this.baseWebdav = join(this.settings.webdavPath, this.app.vault.getName()).replace(/\\/g, "/");
         }
-        log("Base webdav: ", this.baseWebdav);
+        this.log("Base webdav: ", this.baseWebdav);
     }
 
     async setAutoSync() {
@@ -81,11 +92,24 @@ export default class Cloudr extends Plugin {
 
         if (this.settings.autoSync) {
             this.intervalId = window.setInterval(async () => {
-                log("AUTOSYNC INTERVAL TRIGGERED");
+                this.log("AUTOSYNC INTERVAL TRIGGERED");
                 // if (Date.now() - this.checkTime > 30*1000){
 
+                if (this.status === Status.OFFLINE){
+                    const response = await this.operations.test(false)
+                    if (!response){
+                        return;
+                    }else{
+                        this.setStatus(Status.NONE)
+                    }
+                }
+
+                if (this.status !== Status.NONE) {
+                    console.log("Cant Autosync because ", this.status);
+                    return;
+                }
+
                 if (!(await this.operations.check(false))) {
-                    
                     return;
                 }
 
@@ -119,7 +143,7 @@ export default class Cloudr extends Plugin {
 
         // Schedule a 10-second delay
         this.liveSyncTimeouts[filePath] = setTimeout(() => {
-            log("10 seconds have passed");
+            this.log("Live Sync: 10 seconds have passed");
             this.liveSyncCallback(abstractFile);
         }, 10000);
     }
@@ -127,28 +151,28 @@ export default class Cloudr extends Plugin {
     async liveSyncCallback(abstractFile: TAbstractFile) {
         console.log("liveSync outer");
         if (abstractFile instanceof TFile) {
-            if (this.status === Status.NONE) {
-                if (this.connectionError === false) {
-                    // console.log(Date.now() - this.lastLiveSync)
-                    if (Date.now() - this.lastLiveSync < 5000) {
-                        // We want some time between each Sync Process
+            if (this.status === Status.NONE || this.status === Status.OFFLINE) {
+                // if (this.connectionError === false) {
+                // console.log(Date.now() - this.lastLiveSync)
+                //     if (Date.now() - this.lastLiveSync < 5000) {
+                //         // We want some time between each Sync Process
 
-                        this.renewLiveSyncTimeout(abstractFile);
+                //         this.renewLiveSyncTimeout(abstractFile);
 
-                        return;
-                    }
-                } else {
-                    console.log(Date.now() - this.lastLiveSync);
-                    if (Date.now() - this.lastLiveSync < 20000) {
-                        return;
-                    }
-                }
+                //         return;
+                //     }
+                // } else {
+                //     console.log(Date.now() - this.lastLiveSync);
+                //     if (Date.now() - this.lastLiveSync < 20000) {
+                //         return;
+                //     }
+                // }
 
                 this.lastLiveSync = Date.now();
                 // this.status = ;
 
                 // console.log("liveSync Inner");
-                this.setStatus(Status.SYNC);
+                this.setStatus(Status.AUTO);
                 try {
                     const file: TFile = abstractFile;
 
@@ -159,18 +183,17 @@ export default class Cloudr extends Plugin {
                         clearTimeout(timeoutId);
                         delete this.liveSyncTimeouts[filePath];
                     }
-
-                    if (
-                        (this.fileTrees &&
-                            this.fileTrees.localFiles &&
-                            this.fileTrees.localFiles.except &&
-                            this.fileTrees.localFiles.except.hasOwnProperty(filePath)) ||
-                        (this.prevData.except && this.prevData.except.hasOwnProperty(filePath))
-                    ) {
-                        console.log("File is an exception!");
-                        this.show("File " + filePath + " is an exception file!");
-                        return;
-                    }
+                    /**
+                    From here on it is assumed that the currently worked on file is not supposed to 
+                    be excluded from sync for being part of a fileTree's "except" group
+                    */
+                    // if (this.lastFileEdited !== &&(this.fileTrees?.localFiles?.except?.hasOwnProperty(filePath) ||
+                    // this.prevData?.except?.hasOwnProperty(filePath))
+                    //  {
+                    //     console.log("This File is an exception!");
+                    //     this.show("File " + filePath + " is an exception file!");
+                    //     return;
+                    // }
                     // this.setStatus("🔄");
 
                     console.log(filePath);
@@ -178,19 +201,22 @@ export default class Cloudr extends Plugin {
                     const hash = await sha1(data);
 
                     const remoteFilePath = join(this.baseWebdav, filePath);
-                    await this.webdavClient.put(remoteFilePath, data);
+                    const response = await this.webdavClient.put(remoteFilePath, data);
+                    if (!response) {
+                        this.setStatus(Status.OFFLINE);
+                        this.renewLiveSyncTimeout(abstractFile);
+                        return;
+                    }
 
                     this.prevData.files[filePath] = hash;
                     this.savePrevData();
 
                     this.setStatus(Status.NONE);
-                    this.connectionError = false;
                 } catch (error) {
                     // if (!this.connectionError){
                     // console.error("LiveSync Error: ",error);
                     console.log("LiveSync Connectivity ERROR!");
                     this.show("LiveSync Error");
-                    this.connectionError = true;
                     this.lastLiveSync = Date.now();
                     // this.statusBar.setText("📴");
 
@@ -207,7 +233,10 @@ export default class Cloudr extends Plugin {
         if (this.settings.liveSync) {
             this.registerEvent(
                 this.app.vault.on("modify", (file) => {
-                    this.liveSyncCallback(file);
+                    if (file instanceof TFile) {
+                        this.lastFileEdited = file.path;
+                        this.liveSyncCallback(file);
+                    }
                 })
             );
         } else {
@@ -226,6 +255,8 @@ export default class Cloudr extends Plugin {
     }
 
     async setError(error: boolean) {
+        console.error("Error detected and saved to prevData")
+        this.show("Error detected and saved to prevData!")
         this.prevData.error = error;
         if (error) {
             this.setStatus(Status.ERROR);
@@ -236,14 +267,16 @@ export default class Cloudr extends Plugin {
 
     // default true in order for except to be updated
     async saveState(check = false) {
-        log("save state");
+        this.log("save state");
         const action = "save";
         if (this.prevData.error) {
-            if (this.force !== action) {
-                this.setForce(action);
+            
+               
                 this.show("Error detected - please clear in control panel or force action by retriggering " + action);
+                console.log("SAVE ERROR OCCURREDDD")
+                console.error("SAVESPACE COMPROMISED, PANIC!")
                 return;
-            }
+            
         }
         if (this.status === Status.NONE && !this.prevData.error) {
             this.setStatus(Status.SAVE);
@@ -294,7 +327,7 @@ export default class Cloudr extends Plugin {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     calcTotal(...rest: Record<string, any>[]) {
-        log("REST: ", rest);
+        this.log("REST: ", rest);
         this.loadingProcessed = 0;
         let total = 0;
         for (const i of rest) {
@@ -318,11 +351,6 @@ export default class Cloudr extends Plugin {
             return;
         }
 
-        if (this.connectionError) {
-            this.statusBar.setText(Status.OFFLINE);
-            this.statusBar.style.color = "red";
-            return;
-        }
         show && this.statusBar.setText(status);
         // if (status === Status.NONE) {
         //     if (this.prevData.error) {
@@ -342,15 +370,11 @@ export default class Cloudr extends Plugin {
 
     async processed() {
         this.loadingProcessed++;
-        log(this.loadingProcessed.toString() + "/" + this.loadingTotal);
+        this.log(this.loadingProcessed.toString() + "/" + this.loadingTotal);
         this.statusBar2.setText(this.loadingProcessed.toString() + "/" + this.loadingTotal);
     }
 
-    async setForce(action: string) {
-        this.force = action;
-        // await sleep(5000)
-        // this.force = ""
-    }
+
 
     togglePause() {
         this.pause = !this.pause;

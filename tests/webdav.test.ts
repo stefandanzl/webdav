@@ -114,7 +114,7 @@ describe("WebDAV Integration Tests", () => {
 
         // Delete the file
         const deleteResponse = await client.delete(testPath);
-        expect(deleteResponse).toBe(true);
+        expect(deleteResponse).toBe(204);
 
         // Verify file is gone by checking for 404 status
         const getResponse = await client.get(testPath);
