@@ -132,74 +132,51 @@ export default class Cloudr extends Plugin {
             }, this.settings.autoSyncInterval * 1000);
         }
     }
-
-    async renewLiveSyncTimeout(abstractFile: TFile) {
+    async renewLiveSyncTimeout(abstractFile: TFile, attempt = 0) {
         const filePath: string = abstractFile.path;
         const timeoutId = this.liveSyncTimeouts[filePath];
         if (timeoutId) {
             clearTimeout(timeoutId);
             delete this.liveSyncTimeouts[filePath];
         }
-
-        // Schedule a 10-second delay
+    
+        const delay = Math.min(10000 * Math.pow(1.5, attempt), 60000); // Cap at 1 minute
+        
         this.liveSyncTimeouts[filePath] = setTimeout(() => {
-            this.log("Live Sync: 10 seconds have passed");
+            this.log(`Live Sync: ${delay/1000} seconds have passed`);
             this.liveSyncCallback(abstractFile);
-        }, 10000);
+        }, delay);
     }
-
+    
     async liveSyncCallback(abstractFile: TAbstractFile) {
         console.log("liveSync outer");
         if (abstractFile instanceof TFile) {
+            // const now = Date.now();
+            // const minInterval = this.connectionError ? 20000 : 5000;
+            
+            // if (now - this.lastLiveSync < minInterval) {
+            //     this.renewLiveSyncTimeout(abstractFile);
+            //     return;
+            // }
+    
             if (this.status === Status.NONE || this.status === Status.OFFLINE) {
-                // if (this.connectionError === false) {
-                // console.log(Date.now() - this.lastLiveSync)
-                //     if (Date.now() - this.lastLiveSync < 5000) {
-                //         // We want some time between each Sync Process
-
-                //         this.renewLiveSyncTimeout(abstractFile);
-
-                //         return;
-                //     }
-                // } else {
-                //     console.log(Date.now() - this.lastLiveSync);
-                //     if (Date.now() - this.lastLiveSync < 20000) {
-                //         return;
-                //     }
-                // }
-
                 this.lastLiveSync = Date.now();
-                // this.status = ;
-
-                // console.log("liveSync Inner");
+    
                 this.setStatus(Status.AUTO);
                 try {
                     const file: TFile = abstractFile;
-
                     const filePath: string = file.path;
-
+    
                     const timeoutId = this.liveSyncTimeouts[filePath];
                     if (timeoutId) {
                         clearTimeout(timeoutId);
                         delete this.liveSyncTimeouts[filePath];
                     }
-                    /**
-                    From here on it is assumed that the currently worked on file is not supposed to 
-                    be excluded from sync for being part of a fileTree's "except" group
-                    */
-                    // if (this.lastFileEdited !== &&(this.fileTrees?.localFiles?.except?.hasOwnProperty(filePath) ||
-                    // this.prevData?.except?.hasOwnProperty(filePath))
-                    //  {
-                    //     console.log("This File is an exception!");
-                    //     this.show("File " + filePath + " is an exception file!");
-                    //     return;
-                    // }
-                    // this.setStatus("🔄");
-
+    
                     console.log(filePath);
                     const data = await this.app.vault.readBinary(file);
                     const hash = await sha1(data);
-
+    
                     const remoteFilePath = join(this.baseWebdav, filePath);
                     const response = await this.webdavClient.put(remoteFilePath, data);
                     if (!response) {
@@ -207,19 +184,15 @@ export default class Cloudr extends Plugin {
                         this.renewLiveSyncTimeout(abstractFile);
                         return;
                     }
-
+    
                     this.prevData.files[filePath] = hash;
                     this.savePrevData();
-
+    
                     this.setStatus(Status.NONE);
                 } catch (error) {
-                    // if (!this.connectionError){
-                    // console.error("LiveSync Error: ",error);
                     console.log("LiveSync Connectivity ERROR!");
                     this.show("LiveSync Error");
                     this.lastLiveSync = Date.now();
-                    // this.statusBar.setText("📴");
-
                     this.setStatus(Status.ERROR);
                 }
             } else {
@@ -227,27 +200,23 @@ export default class Cloudr extends Plugin {
             }
         }
     }
-
+    
     setLiveSync() {
-        // rather setLivePush
+        const modifyHandler = (file: TAbstractFile) => {
+            if (file instanceof TFile) {
+                this.lastFileEdited = file.path;
+                this.liveSyncCallback(file);
+            }
+        };
+    
         if (this.settings.liveSync) {
             this.registerEvent(
-                this.app.vault.on("modify", (file) => {
-                    if (file instanceof TFile) {
-                        this.lastFileEdited = file.path;
-                        this.liveSyncCallback(file);
-                    }
-                })
+                this.app.vault.on("modify", modifyHandler)
             );
         } else {
-            this.app.vault.off("modify", (file) => {
-                if (file instanceof TAbstractFile || file instanceof TFile) {
-                    this.liveSyncCallback(file);
-                }
-            });
+            this.app.vault.off("modify", modifyHandler);
         }
     }
-
     async errorWrite() {
         // this.prevData.error = true;
         this.setError(true);
