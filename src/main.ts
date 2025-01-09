@@ -149,7 +149,7 @@ export default class Cloudr extends Plugin {
     }
     
     async liveSyncCallback(abstractFile: TAbstractFile) {
-        console.log("liveSync outer");
+        this.log("liveSync outer");
         if (abstractFile instanceof TFile) {
             // const now = Date.now();
             // const minInterval = this.connectionError ? 20000 : 5000;
@@ -281,7 +281,7 @@ export default class Cloudr extends Plugin {
     async savePrevData() {
         try {
             await this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2));
-            console.log("saving prevData successful!");
+            this.log("saving prevData successful!");
             // this.prevDataSaveTimeoutId = null;
         } catch (error) {
             console.error("prevData   ", error);
