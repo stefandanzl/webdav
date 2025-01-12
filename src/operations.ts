@@ -334,8 +334,8 @@ export class Operations {
     }
     async sync(controller: Controller, show = true) {
         if (this.plugin.prevData.error) {
-            const action = "sync";
-            show && this.plugin.show("Error detected - please clear in control panel or force action by retriggering " + action);
+
+            show && this.plugin.show("Error detected - please clear in control panel or force action by retriggering action");
             return;
         }
 

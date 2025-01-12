@@ -20,24 +20,21 @@ export default class Cloudr extends Plugin {
     statusBar1: HTMLElement;
     statusBar2: HTMLElement;
     modal: FileTreeModal;
+
     webdavPath: string;
     showModal: boolean;
-    excluded: object;
     webdavClient: WebDAVClient;
     fileTrees: {
         webdavFiles: FileTree;
         localFiles: FileTree;
     };
-    vaultName: string;
-    baseLocal: string;
     baseWebdav: string;
     prevPath: string;
     prevData: PreviousObject;
+
     intervalId: number;
     status: Status;
-    message: string;
     lastFileEdited: string;
-
     lastLiveSync: number;
     liveSyncTimeouts: Record<string, NodeJS.Timeout | null> = {};
 
@@ -51,7 +48,6 @@ export default class Cloudr extends Plugin {
     loadingTotal: number;
     loadingProcessed: number;
     checkTime: number;
-    testVal: boolean;
 
     onload() {
         launcher(this);

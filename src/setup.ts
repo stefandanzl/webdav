@@ -18,7 +18,6 @@ export async function launcher(plugin: Cloudr) {
     plugin.operations = new Operations(plugin);
 
     plugin.mobile = Platform.isMobileApp;
-    plugin.testVal = false;
     plugin.settings.exclusionsOverride = false;
     plugin.setBaseWebdav();
     plugin.prevPath = `${plugin.app.vault.configDir}/plugins/webdav/prevdata.json`;

@@ -83,6 +83,8 @@ export type WebDAVDirectoryItem = {
 };
 
 export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
+    folderSettings: [],
+    
     url: "",
     username: "",
     password: "",
@@ -105,6 +107,9 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
 };
 
 export interface CloudrSettings {
+    // Additional folder syncs
+    folderSettings: WebdavFolderSettings[];
+
     url: string;
     username: string;
     password: string;
@@ -123,8 +128,18 @@ export interface CloudrSettings {
     skipHiddenMobile: boolean;
 }
 
-export type Exclusions = {
+export interface Exclusions {
     directories: string[];
     extensions: string[];
     markers: string[];
 };
+
+export interface WebdavFolderSettings {
+    enabled: boolean;
+    name: string;           // Display name for the folder
+    url: string;           // WebDAV server URL
+    username: string;
+    password: string;
+    remotePath: string;    // Path on WebDAV server
+    localPath: string;     // Path in Obsidian vault
+}
