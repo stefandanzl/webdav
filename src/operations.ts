@@ -45,6 +45,7 @@ export class Operations {
         try {
             if (filePath.endsWith("/")) {
                 await this.ensureLocalDirectory(filePath);
+                this.plugin.processed();
                 return;
             }
 
