@@ -7,6 +7,11 @@ export const join = (...args: string[]) => {
     return args.join(separator).replace(/\/\//g, "/");
 };
 
+/**
+ * Returns true if obj is empty
+ * @param obj 
+ * @returns 
+ */
 export const emptyObj = (obj: unknown) => {
     if (typeof obj === "object" && obj !== null) {
         return Object.values(obj).length === 0;

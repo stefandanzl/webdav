@@ -23,6 +23,11 @@ export async function launcher(plugin: Cloudr) {
     plugin.prevPath = `${plugin.app.vault.configDir}/plugins/webdav/prevdata.json`;
     // console.log(plugin.prevPath)
 
+    plugin.allFiles = {
+        local: {},
+        webdav: {}
+    }
+
     if (plugin.settings.enableRibbons) {
         plugin.addRibbonIcon("upload-cloud", "PUSH to Webdav", () => {
             plugin.operations.sync({

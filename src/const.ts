@@ -10,11 +10,6 @@ export enum Status {
     SAVE = "💾",
     PAUSE = "⏸️",
     OFFLINE = "📴",
-    A = "🤬",
-    B = "🤑",
-    C = "🤡",
-    D ="🐂",
-    E = "👩🏿‍🤝‍👩🏾"
 }
 
 export type FileList = Record<string, string>;
@@ -132,7 +127,7 @@ export interface Exclusions {
     directories: string[];
     extensions: string[];
     markers: string[];
-};
+}
 
 export interface WebdavFolderSettings {
     enabled: boolean;
