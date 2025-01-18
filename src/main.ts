@@ -20,30 +20,31 @@ export default class Cloudr extends Plugin {
     statusBar1: HTMLElement;
     statusBar2: HTMLElement;
     modal: FileTreeModal;
+
     webdavPath: string;
     showModal: boolean;
-    excluded: object;
     webdavClient: WebDAVClient;
     fileTrees: {
         webdavFiles: FileTree;
         localFiles: FileTree;
     };
-    vaultName: string;
-    baseLocal: string;
+    allFiles: {
+        local: FileList;
+        webdav: FileList;
+    };
     baseWebdav: string;
     prevPath: string;
     prevData: PreviousObject;
+
     intervalId: number;
     status: Status;
-    message: string;
     lastFileEdited: string;
-
     lastLiveSync: number;
     liveSyncTimeouts: Record<string, NodeJS.Timeout | null> = {};
 
     notice: Notice;
     pause: boolean;
-    
+
     mobile: boolean;
     localFiles: FileList;
     webdavFiles: FileList;
@@ -51,7 +52,6 @@ export default class Cloudr extends Plugin {
     loadingTotal: number;
     loadingProcessed: number;
     checkTime: number;
-    testVal: boolean;
 
     onload() {
         launcher(this);
@@ -60,7 +60,7 @@ export default class Cloudr extends Plugin {
     log(...text: string[] | unknown[]) {
         /**
          * Set this value for excessive log output
-         * 
+         *
          */
         // const doLog = true;
         if (this.doLog) {
@@ -95,12 +95,12 @@ export default class Cloudr extends Plugin {
                 this.log("AUTOSYNC INTERVAL TRIGGERED");
                 // if (Date.now() - this.checkTime > 30*1000){
 
-                if (this.status === Status.OFFLINE){
-                    const response = await this.operations.test(false)
-                    if (!response){
+                if (this.status === Status.OFFLINE) {
+                    const response = await this.operations.test(false);
+                    if (!response) {
                         return;
-                    }else{
-                        this.setStatus(Status.NONE)
+                    } else {
+                        this.setStatus(Status.NONE);
                     }
                 }
 
@@ -139,44 +139,44 @@ export default class Cloudr extends Plugin {
             clearTimeout(timeoutId);
             delete this.liveSyncTimeouts[filePath];
         }
-    
+
         const delay = Math.min(10000 * Math.pow(1.5, attempt), 60000); // Cap at 1 minute
-        
+
         this.liveSyncTimeouts[filePath] = setTimeout(() => {
-            this.log(`Live Sync: ${delay/1000} seconds have passed`);
+            this.log(`Live Sync: ${delay / 1000} seconds have passed`);
             this.liveSyncCallback(abstractFile);
         }, delay);
     }
-    
+
     async liveSyncCallback(abstractFile: TAbstractFile) {
         this.log("liveSync outer");
         if (abstractFile instanceof TFile) {
             // const now = Date.now();
             // const minInterval = this.connectionError ? 20000 : 5000;
-            
+
             // if (now - this.lastLiveSync < minInterval) {
             //     this.renewLiveSyncTimeout(abstractFile);
             //     return;
             // }
-    
+
             if (this.status === Status.NONE || this.status === Status.OFFLINE) {
                 this.lastLiveSync = Date.now();
-    
+
                 this.setStatus(Status.AUTO);
                 try {
                     const file: TFile = abstractFile;
                     const filePath: string = file.path;
-    
+
                     const timeoutId = this.liveSyncTimeouts[filePath];
                     if (timeoutId) {
                         clearTimeout(timeoutId);
                         delete this.liveSyncTimeouts[filePath];
                     }
-    
-                this.log(filePath);
+
+                    this.log(filePath);
                     const data = await this.app.vault.readBinary(file);
                     const hash = await sha1(data);
-    
+
                     const remoteFilePath = join(this.baseWebdav, filePath);
                     const response = await this.webdavClient.put(remoteFilePath, data);
                     if (!response) {
@@ -184,10 +184,10 @@ export default class Cloudr extends Plugin {
                         this.renewLiveSyncTimeout(abstractFile);
                         return;
                     }
-    
+
                     this.prevData.files[filePath] = hash;
                     this.savePrevData();
-    
+
                     this.setStatus(Status.NONE);
                 } catch (error) {
                     console.log("LiveSync Connectivity ERROR!");
@@ -200,7 +200,7 @@ export default class Cloudr extends Plugin {
             }
         }
     }
-    
+
     setLiveSync() {
         const modifyHandler = (file: TAbstractFile) => {
             if (file instanceof TFile) {
@@ -208,11 +208,9 @@ export default class Cloudr extends Plugin {
                 this.liveSyncCallback(file);
             }
         };
-    
+
         if (this.settings.liveSync) {
-            this.registerEvent(
-                this.app.vault.on("modify", modifyHandler)
-            );
+            this.registerEvent(this.app.vault.on("modify", modifyHandler));
         } else {
             this.app.vault.off("modify", modifyHandler);
         }
@@ -224,8 +222,8 @@ export default class Cloudr extends Plugin {
     }
 
     async setError(error: boolean) {
-        console.error("Error detected and saved to prevData")
-        this.show("Error detected and saved to prevData!")
+        console.error("Error detected and saved to prevData");
+        this.show("Error detected and saved to prevData!");
         this.prevData.error = error;
         if (error) {
             this.setStatus(Status.ERROR);
@@ -235,23 +233,28 @@ export default class Cloudr extends Plugin {
     }
 
     // default true in order for except to be updated
-    async saveState(check = false) {
+    async saveState(checkLocal = false) {
         this.log("save state");
         const action = "save";
         if (this.prevData.error) {
-            
-               
-                this.show("Error detected - please clear in control panel or force action by retriggering " + action);
-                console.log("SAVE ERROR OCCURREDDD")
-                console.error("SAVESPACE COMPROMISED, PANIC!")
-                return;
-            
+            this.show("Error detected - please clear in control panel or force action by retriggering " + action);
+            console.log("SAVE ERROR OCCURREDDD");
+            console.error("SAVESPACE COMPROMISED, PANIC!");
+            return;
         }
         if (this.status === Status.NONE && !this.prevData.error) {
             this.setStatus(Status.SAVE);
             try {
-                this.prevData.files = await this.checksum.generateLocalHashTree(false);
+                // if (checkLocal || emptyObj(this.allFiles.local)) {
 
+                /**
+                 * IMPORTANT! generateLocalHashTree must be given false in order for ALL files to be properly added to your previous files.
+                 * Otherwise they may be seen as "added" or "deleted"
+                 */
+                this.prevData.files = await this.checksum.generateLocalHashTree(false);
+                // } else {
+                //     this.prevData.files = this.allFiles.local;
+                // }
                 this.prevData = {
                     date: Date.now(),
                     error: this.prevData.error,
@@ -342,8 +345,6 @@ export default class Cloudr extends Plugin {
         this.log(this.loadingProcessed.toString() + "/" + this.loadingTotal);
         this.statusBar2.setText(this.loadingProcessed.toString() + "/" + this.loadingTotal);
     }
-
-
 
     togglePause() {
         this.pause = !this.pause;

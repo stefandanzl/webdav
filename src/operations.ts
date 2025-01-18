@@ -1,6 +1,6 @@
 import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
-import { join, dirname, fileTreesEmpty } from "./util";
+import { join, dirname } from "./util";
 import { normalizePath } from "obsidian";
 import { Controller, FileList, Status } from "./const";
 
@@ -26,26 +26,34 @@ export class Operations {
         });
     }
 
-    /**
-     * Download files from WebDAV server
-     */
     async downloadFiles(webdavClient: WebDAVClient, filesMap: FileList, remoteBasePath: string): Promise<void> {
         if (!filesMap || Object.keys(filesMap).length === 0) {
             this.plugin.log("No files to download");
             return;
         }
 
-        await Promise.all(Object.entries(filesMap).map(([filePath, _]) => this.downloadFile(webdavClient, filePath, remoteBasePath)));
+        // First attempt for all files
+        const results = await Promise.all(
+            Object.entries(filesMap).map(async ([filePath, _]) => ({
+                filePath,
+                success: await this.downloadFile(webdavClient, filePath, remoteBasePath),
+            }))
+        );
+
+        // Filter out failed downloads and retry them
+        const failedDownloads = results.filter((r) => !r.success);
+        if (failedDownloads.length > 0) {
+            console.log(`Retrying ${failedDownloads.length} failed downloads...`);
+            await Promise.all(failedDownloads.map(({ filePath }) => this.downloadFile(webdavClient, filePath, remoteBasePath)));
+        }
     }
 
-    /**
-     * Download a single file from WebDAV
-     */
-    private async downloadFile(webdavClient: WebDAVClient, filePath: string, remoteBasePath: string): Promise<void> {
+    private async downloadFile(webdavClient: WebDAVClient, filePath: string, remoteBasePath: string): Promise<boolean> {
         try {
             if (filePath.endsWith("/")) {
                 await this.ensureLocalDirectory(filePath);
-                return;
+                this.plugin.processed();
+                return true;
             }
 
             const remotePath = join(remoteBasePath, filePath);
@@ -54,7 +62,7 @@ export class Operations {
             const remoteStats = await webdavClient.exists(remotePath);
             if (!remoteStats) {
                 console.error(`Remote file not found: ${remotePath}`);
-                return;
+                return false;
             }
 
             // Ensure local directory exists
@@ -65,11 +73,45 @@ export class Operations {
             if (fileData.status !== 200) {
                 throw new Error(`Failed to download ${remotePath}: ${fileData.status}`);
             }
+            /// app.vault.adapter.writeBinary("AAA/AAA/A1.md","TEST")
             await this.plugin.app.vault.adapter.writeBinary(filePath, fileData.data);
             this.plugin.processed();
-            // console.log(`Downloaded: ${remotePath}`);
+            return true;
         } catch (error) {
-            console.error(`Error downloading ${filePath}:`, error);
+            this.plugin.log(`Error downloading ${filePath}:`, error);
+            return false;
+        }
+    }
+
+    // Helper methods
+    private async downloadWithRetry(
+        webdavClient: WebDAVClient,
+        remotePath: string,
+        maxRetries = 2
+    ): Promise<{
+        data: ArrayBuffer;
+        status: number;
+    }> {
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                // return await webdavClient.getFileContents(remotePath, {
+                //     format: "binary"
+                // });
+                return await webdavClient.get(remotePath);
+            } catch (error) {
+                if (attempt === maxRetries) throw error;
+                console.log(`Retry ${attempt} for ${remotePath}`);
+                await new Promise((resolve) => setTimeout(resolve, 100));
+            }
+        }
+        throw new Error(`Failed to download after ${maxRetries} attempts`);
+    }
+
+    private async ensureLocalDirectory(path: string): Promise<void> {
+        const exists = await this.plugin.app.vault.adapter.exists(path);
+        if (!exists) {
+            console.log(`Creating local directory: ${path}`);
+            await this.plugin.app.vault.createFolder(path);
         }
     }
 
@@ -183,38 +225,6 @@ export class Operations {
         }
     }
 
-    // Helper methods
-    private async downloadWithRetry(
-        webdavClient: WebDAVClient,
-        remotePath: string,
-        maxRetries = 2
-    ): Promise<{
-        data: ArrayBuffer;
-        status: number;
-    }> {
-        for (let attempt = 1; attempt <= maxRetries; attempt++) {
-            try {
-                // return await webdavClient.getFileContents(remotePath, {
-                //     format: "binary"
-                // });
-                return await webdavClient.get(remotePath);
-            } catch (error) {
-                if (attempt === maxRetries) throw error;
-                console.log(`Retry ${attempt} for ${remotePath}`);
-                await new Promise((resolve) => setTimeout(resolve, 100));
-            }
-        }
-        throw new Error(`Failed to download after ${maxRetries} attempts`);
-    }
-
-    private async ensureLocalDirectory(path: string): Promise<void> {
-        const exists = await this.plugin.app.vault.adapter.exists(path);
-        if (!exists) {
-            console.log(`Creating local directory: ${path}`);
-            await this.plugin.app.vault.createFolder(path);
-        }
-    }
-
     private async ensureRemoteDirectory(webdavClient: WebDAVClient, path: string, basePath: string): Promise<void> {
         try {
             console.log(`Creating remote directory: ${path}`);
@@ -276,8 +286,8 @@ export class Operations {
         }
     }
 
-    async check(show = true, force = false) {
-        if (!force && this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
+    async check(show = true, exclude = true) {
+        if (this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
             show && this.plugin.show(`Checking not possible, currently ${this.plugin.status}`);
             return;
         }
@@ -301,9 +311,13 @@ export class Operations {
                 this.plugin.baseWebdav,
                 this.plugin.settings.exclusions
             );
-            const localPromise = this.plugin.checksum.generateLocalHashTree(true);
+            // default true
+            const localPromise = this.plugin.checksum.generateLocalHashTree(exclude);
 
             const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
+
+            this.plugin.allFiles.local = localFiles;
+            this.plugin.allFiles.webdav = webdavFiles;
 
             this.plugin.log("WEBDAV:", webdavFiles);
             this.plugin.log("LOCAL", localFiles);
@@ -321,7 +335,8 @@ export class Operations {
             // }
             this.plugin.checkTime = Date.now();
 
-            show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
+            // show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
+            show && this.plugin.show("Finished checking files");
             this.plugin.setStatus(Status.NONE);
             return true;
         } catch (error) {
@@ -334,8 +349,7 @@ export class Operations {
     }
     async sync(controller: Controller, show = true) {
         if (this.plugin.prevData.error) {
-            const action = "sync";
-            show && this.plugin.show("Error detected - please clear in control panel or force action by retriggering " + action);
+            show && this.plugin.show("Error detected - please clear in control panel or force action by retriggering action");
             return;
         }
 
@@ -497,10 +511,11 @@ export class Operations {
 
             // Execute all operations concurrently
             await Promise.all(operations);
+            this.plugin.setStatus(Status.NONE)
 
             show && this.plugin.show("Sync completed - checking again");
-            await this.check(true, true);
             await this.plugin.saveState();
+            await this.check(true);
             show && this.plugin.show("Done");
             this.plugin.setStatus(Status.NONE);
         } catch (error) {
