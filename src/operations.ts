@@ -286,8 +286,8 @@ export class Operations {
         }
     }
 
-    async check(show = true, force = false) {
-        if (!force && this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
+    async check(show = true, exclude = true) {
+        if (this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
             show && this.plugin.show(`Checking not possible, currently ${this.plugin.status}`);
             return;
         }
@@ -311,7 +311,8 @@ export class Operations {
                 this.plugin.baseWebdav,
                 this.plugin.settings.exclusions
             );
-            const localPromise = this.plugin.checksum.generateLocalHashTree(true);
+            // default true
+            const localPromise = this.plugin.checksum.generateLocalHashTree(exclude);
 
             const [webdavFiles, localFiles] = await Promise.all([webdavPromise, localPromise]);
 
@@ -510,10 +511,11 @@ export class Operations {
 
             // Execute all operations concurrently
             await Promise.all(operations);
+            this.plugin.setStatus(Status.NONE)
 
             show && this.plugin.show("Sync completed - checking again");
-            await this.check(true, true);
             await this.plugin.saveState();
+            await this.check(true);
             show && this.plugin.show("Done");
             this.plugin.setStatus(Status.NONE);
         } catch (error) {

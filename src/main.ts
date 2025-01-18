@@ -5,7 +5,7 @@ import { FileTreeModal } from "./modal";
 import { Checksum } from "./checksum";
 import { Compare } from "./compare";
 import { Operations } from "./operations";
-import { emptyObj, join, sha1 } from "./util";
+import { join, sha1 } from "./util";
 import { launcher } from "./setup";
 import { FileList, FileTree, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS } from "./const";
 
@@ -233,7 +233,7 @@ export default class Cloudr extends Plugin {
     }
 
     // default true in order for except to be updated
-    async saveState(check = false) {
+    async saveState(checkLocal = false) {
         this.log("save state");
         const action = "save";
         if (this.prevData.error) {
@@ -245,11 +245,16 @@ export default class Cloudr extends Plugin {
         if (this.status === Status.NONE && !this.prevData.error) {
             this.setStatus(Status.SAVE);
             try {
-                if (check || emptyObj(this.allFiles.local)) {
-                    this.prevData.files = await this.checksum.generateLocalHashTree(false);
-                } else {
-                    this.prevData.files = this.allFiles.local;
-                }
+                // if (checkLocal || emptyObj(this.allFiles.local)) {
+
+                /**
+                 * IMPORTANT! generateLocalHashTree must be given false in order for ALL files to be properly added to your previous files.
+                 * Otherwise they may be seen as "added" or "deleted"
+                 */
+                this.prevData.files = await this.checksum.generateLocalHashTree(false);
+                // } else {
+                //     this.prevData.files = this.allFiles.local;
+                // }
                 this.prevData = {
                     date: Date.now(),
                     error: this.prevData.error,
