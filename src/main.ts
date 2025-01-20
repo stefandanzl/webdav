@@ -1,4 +1,4 @@
-import { TFile, TAbstractFile, Notice, Plugin } from "obsidian";
+import { TFile, TAbstractFile, Notice, Plugin, setIcon } from "obsidian";
 import { WebDAVClient } from "./webdav";
 import {} from "./settings";
 import { FileTreeModal } from "./modal";
@@ -7,7 +7,7 @@ import { Compare } from "./compare";
 import { Operations } from "./operations";
 import { join, sha1 } from "./util";
 import { launcher } from "./setup";
-import { FileList, FileTree, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS } from "./const";
+import { FileList, FileTree, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS, STATUS_ITEMS } from "./const";
 
 export default class Cloudr extends Plugin {
     doLog: boolean;
@@ -19,6 +19,7 @@ export default class Cloudr extends Plugin {
     statusBar: HTMLElement;
     statusBar1: HTMLElement;
     statusBar2: HTMLElement;
+    iconSpan: HTMLSpanElement;
     modal: FileTreeModal;
 
     webdavPath: string;
@@ -315,31 +316,6 @@ export default class Cloudr extends Plugin {
         this.statusBar2.setText("");
     }
 
-    async setStatus(status: Status, show = true, text?: string) {
-        this.status = status;
-
-        if (text) {
-            this.statusBar.setText(text);
-            return;
-        }
-
-        show && this.statusBar.setText(status);
-        // if (status === Status.NONE) {
-        //     if (this.prevData.error) {
-        //         this.statusBar.setText(Status.ERROR);
-        //         this.statusBar.style.color = "red";
-        //         return;
-        //     } else {
-        //         this.statusBar.setText(Status.OK);
-        //         this.statusBar.style.color = "var(--status-bar-text-color)";
-        //         return;
-        //     }
-        // } else {
-        //     this.statusBar.setText(text as string);
-        //     this.statusBar.style.color = "var(--status-bar-text-color)";
-        // }
-    }
-
     async processed() {
         this.loadingProcessed++;
         this.log(this.loadingProcessed.toString() + "/" + this.loadingTotal);
@@ -385,6 +361,26 @@ export default class Cloudr extends Plugin {
 
         fragment.appendChild(divElement);
         this.notice = new Notice(fragment, duration);
+    }
+
+    async setStatus(status: Status, show = true, text?: string) {
+        this.status = status;
+
+        if (text) {
+            this.statusBar.setText(text);
+            return;
+        }
+
+        // show && this.statusBar.setText(status);
+        if (show) {
+            // Update status method
+            //  updateSyncStatus(status: 'error' | 'syncing' | 'success') {
+            // this.iconSpan.removeClass("mod-error", "mod-syncing", "mod-success", );
+            // this.iconSpan.addClass(`mod-${STATUS_ITEMS[status].class}`);
+            this.iconSpan.setCssProps({color: STATUS_ITEMS[status].color})
+            this.statusBar.setAttribute("aria-label", STATUS_ITEMS[status].label);
+            setIcon(this.iconSpan, STATUS_ITEMS[status].lucide);
+        }
     }
 
     onunload() {

@@ -3,7 +3,7 @@ import { CloudrSettingsTab } from "./settings";
 import { Compare } from "./compare";
 import { Checksum } from "./checksum";
 import { Operations } from "./operations";
-import { Platform } from "obsidian";
+import { Platform, setIcon } from "obsidian";
 import { Status } from "./const";
 
 export async function launcher(plugin: Cloudr) {
@@ -101,23 +101,63 @@ export async function launcher(plugin: Cloudr) {
 
     plugin.loadingTotal = -1;
 
-    // Optional: Apply additional styling if needed
-    plugin.statusBar.style.display = "flex"; // Make the status bar a flex container
 
-    plugin.statusBar.style.width = "25px";
-    plugin.statusBar.style.color = "green";
 
-    plugin.statusBar.classList.add("status-bar-item");
-    plugin.statusBar.classList.add("mod-clickable");
+// In your main plugin class
+plugin.statusBar = plugin.addStatusBarItem();
+plugin.statusBar.addClass('plugin-sync'); // Main container class
+plugin.statusBar.setAttribute('aria-label', 'Uninitialized');
+plugin.statusBar.setAttribute('data-tooltip-position', 'top');
 
-    // plugin.statusBar.setText('OFF');
-    plugin.statusBar.addEventListener("click", () => {
-        if (plugin.app.lastEvent && plugin.app.lastEvent.ctrlKey) {
-            console.log("TTTTTTTTTTTTTTTTT");
-        } else {
-            plugin.displayModal();
-        }
-    });
+// Create inner container
+const innerDiv = plugin.statusBar.createDiv('status-bar-item-segment');
+
+// Create span for icon
+plugin.iconSpan = innerDiv.createSpan({
+   cls: ['status-bar-item-icon', 'sync-status-icon']
+});
+
+// Set the icon
+setIcon(plugin.iconSpan, 'refresh-cw-off');
+
+// Or if you need more control over the classes:
+plugin.statusBar
+   .addClass('status-bar-item', 'plugin-sync');
+
+
+// Or more Obsidian-style
+plugin.statusBar.onClickEvent(() => {
+    // Your click handler
+    plugin.displayModal();
+});
+
+
+
+
+
+
+
+
+
+
+
+    // // Optional: Apply additional styling if needed
+    // plugin.statusBar.style.display = "flex"; // Make the status bar a flex container
+
+    // plugin.statusBar.style.width = "25px";
+    // plugin.statusBar.style.color = "green";
+
+    // plugin.statusBar.classList.add("status-bar-item");
+    // plugin.statusBar.classList.add("mod-clickable");
+
+    // // plugin.statusBar.setText('OFF');
+    // plugin.statusBar.addEventListener("click", () => {
+    //     if (plugin.app.lastEvent && plugin.app.lastEvent.ctrlKey) {
+    //         console.log("TTTTTTTTTTTTTTTTT");
+    //     } else {
+    //         plugin.displayModal();
+    //     }
+    // });
 
     plugin.addCommand({
         id: "display-modal",

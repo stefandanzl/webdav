@@ -12,6 +12,94 @@ export enum Status {
     OFFLINE = "📴",
 }
 
+export interface StatusItem {
+    emoji: string;
+    class: string;
+    lucide: string;
+    label: string;
+    color: string;
+}
+
+export const STATUS_ITEMS: Record<Status, StatusItem> = {
+    [Status.NONE]: {
+        emoji: "✔️",
+        class: "status-none",
+        lucide: "circle-check-big",//"check",
+        label: "Ready",
+        color: "var(--interactive-accent)", 
+    },
+    [Status.CHECK]: {
+        emoji: "🔎",
+        class: "status-check",
+        lucide: "search",
+        label: "Checking files ...",
+        color: "#0000FF", // Blue
+    },
+    [Status.PULL]: {
+        emoji: "⬇️",
+        class: "status-pull",
+        lucide: "arrow-down-to-line",
+        label: "Downloading files ...",
+        color: "#FFA500", // Orange
+    },
+    [Status.PUSH]: {
+        emoji: "⬆️",
+        class: "status-push",
+        lucide: "arrow-up-from-line",
+        label: "Uploading files ...",
+        color: "#FFA500", // Orange
+    },
+    [Status.SYNC]: {
+        emoji: "⏳",
+        class: "status-sync",
+        lucide: "refresh-ccw",
+        label: "Synchronising files ...",
+        color: "var(--interactive-accent)",
+    },
+    [Status.ERROR]: {
+        emoji: "❌",
+        class: "status-error",
+        lucide: "refresh-cw-off",
+        label: "Error! Please check Console in DevTools!",
+        color: "#FF0000", // Red
+    },
+    [Status.AUTO]: {
+        emoji: "🔄",
+        class: "status-auto",
+        lucide: "refresh-ccw-dot",
+        label: "Performing automated Sync ...",
+        color: "var(--interactive-accent)",
+    },
+    [Status.TEST]: {
+        emoji: "🧪",
+        class: "status-test",
+        lucide: "flask",
+        label: "Testing server connection ...",
+        color: "#0000FF", // Blue
+    },
+    [Status.SAVE]: {
+        emoji: "💾",
+        class: "status-save",
+        lucide: "save",
+        label: "Saving current file state to disk ...",
+        color: "",
+    },
+    [Status.PAUSE]: {
+        emoji: "⏸️",
+        class: "status-pause",
+        lucide: "pause",
+        label: "User enabled Pause - Disable in Control Panel",
+        color: "",
+    },
+    [Status.OFFLINE]: {
+        emoji: "📴",
+        class: "status-offline",
+        lucide: "wifi-off",
+        label: "Offline! Can't connect to server!",
+        color: "#FF0000", // Red
+    },
+};
+
 export type FileList = Record<string, string>;
 
 export type FileTree = {
@@ -79,7 +167,7 @@ export type WebDAVDirectoryItem = {
 
 export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     folderSettings: [],
-    
+
     url: "",
     username: "",
     password: "",
@@ -131,10 +219,10 @@ export interface Exclusions {
 
 export interface WebdavFolderSettings {
     enabled: boolean;
-    name: string;           // Display name for the folder
-    url: string;           // WebDAV server URL
+    name: string; // Display name for the folder
+    url: string; // WebDAV server URL
     username: string;
     password: string;
-    remotePath: string;    // Path on WebDAV server
-    localPath: string;     // Path in Obsidian vault
+    remotePath: string; // Path on WebDAV server
+    localPath: string; // Path in Obsidian vault
 }
