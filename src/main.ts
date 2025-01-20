@@ -7,7 +7,7 @@ import { Compare } from "./compare";
 import { Operations } from "./operations";
 import { join, sha1 } from "./util";
 import { launcher } from "./setup";
-import { FileList, FileTree, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS, STATUS_ITEMS } from "./const";
+import { FileList, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS, STATUS_ITEMS, FileTrees } from "./const";
 
 export default class Cloudr extends Plugin {
     doLog: boolean;
@@ -15,6 +15,9 @@ export default class Cloudr extends Plugin {
     compare: Compare;
     checksum: Checksum;
     operations: Operations;
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    settingPrivate: any;
 
     statusBar: HTMLElement;
     statusBar1: HTMLElement;
@@ -25,10 +28,7 @@ export default class Cloudr extends Plugin {
     webdavPath: string;
     showModal: boolean;
     webdavClient: WebDAVClient;
-    fileTrees: {
-        webdavFiles: FileTree;
-        localFiles: FileTree;
-    };
+    fileTrees: FileTrees;
     allFiles: {
         local: FileList;
         webdav: FileList;
@@ -336,15 +336,6 @@ export default class Cloudr extends Plugin {
     async displayModal() {
         this.modal = new FileTreeModal(this.app, this);
         this.modal.open();
-
-        if (!this.fileTrees) {
-            const response = await this.operations.check();
-            if (response) {
-                this.modal.fileTreeDiv.setText(JSON.stringify(this.fileTrees, null, 2));
-            } else {
-                this.modal.fileTreeDiv.setText("Checking failed!");
-            }
-        }
     }
 
     // eslint-disable-next-line @typescript-eslint/no-inferrable-types
@@ -366,6 +357,8 @@ export default class Cloudr extends Plugin {
     async setStatus(status: Status, show = true, text?: string) {
         this.status = status;
 
+        // this.app.vault.fileMap
+
         if (text) {
             this.statusBar.setText(text);
             return;
@@ -377,7 +370,7 @@ export default class Cloudr extends Plugin {
             //  updateSyncStatus(status: 'error' | 'syncing' | 'success') {
             // this.iconSpan.removeClass("mod-error", "mod-syncing", "mod-success", );
             // this.iconSpan.addClass(`mod-${STATUS_ITEMS[status].class}`);
-            this.iconSpan.setCssProps({color: STATUS_ITEMS[status].color})
+            this.iconSpan.setCssProps({ color: STATUS_ITEMS[status].color });
             this.statusBar.setAttribute("aria-label", STATUS_ITEMS[status].label);
             setIcon(this.iconSpan, STATUS_ITEMS[status].lucide);
         }

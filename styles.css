@@ -1,8 +1,80 @@
-/*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
-*/
+/* Modal and main layout */
+.webdav-modal {
+    overflow-y: hidden;
+    width: 100%;
+    height: 100%;
+ }
+ 
+ .webdav-container {
+    display: flex;
+    flex-direction: row;
+    gap: 40px;
+    margin: 5px;
+    min-height: 330px;
+ }
+ 
+ .webdav-button-container {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    width: 150px;  /* Instead of position: fixed */
+    flex-shrink: 0;
+ }
+ 
+ .webdav-content {
+    flex: 1;  /* Take remaining space */
+    overflow: auto;
+    height: 100%;
+    margin-left: 80px;
+ }
+ 
+ .webdav-file-tree {
+    white-space: pre;
+    min-height: 70vh;
+    overflow: auto;
+    user-select: text;
+    padding-bottom: 10px;
+ }
+ 
+ /* Sync status styling */
+ .sync-status {
+    padding: 10px;
+    font-size: var(--font-ui-medium);
+ }
+ 
+ .sync-location {
+    margin-bottom: 20px;
+    border-left: 2px solid var(--background-modifier-border);
+    padding-left: var(--size-4-2);
+ }
+ 
+ .sync-location-title {
+    font-size: var(--font-ui-large);
+    font-weight: var(--font-bold);
+    margin-bottom: 10px;
+    color: var(--text-accent);
+ }
+ 
+ .sync-section {
+    margin-left: var(--size-4-2);
+    margin-bottom: 15px;
+ }
+ 
+ .sync-section-title {
+    font-weight: var(--font-bold);
+    margin-bottom: 5px;
+    color: var(--text-muted);
+ }
+ 
+ .sync-file-entry {
+    margin-left: var(--size-4-2);
+    padding: 3px 0;
+    font-family: var(--font-monospace);
+ }
+ 
+ /* Button styling */
+ .webdav-button {
+    padding: var(--size-4-1);
+    margin-bottom: var(--size-4-1);
+    width: 100%;
+ }

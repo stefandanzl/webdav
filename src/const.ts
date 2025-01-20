@@ -1,3 +1,5 @@
+export const PLUGIN_ID = "webdav";
+
 export enum Status {
     NONE = "✔️",
     CHECK = "🔎",
@@ -24,9 +26,9 @@ export const STATUS_ITEMS: Record<Status, StatusItem> = {
     [Status.NONE]: {
         emoji: "✔️",
         class: "status-none",
-        lucide: "circle-check-big",//"check",
+        lucide: "circle-check-big", //"check",
         label: "Ready",
-        color: "var(--interactive-accent)", 
+        color: "var(--interactive-accent)",
     },
     [Status.CHECK]: {
         emoji: "🔎",
@@ -107,6 +109,11 @@ export type FileTree = {
     deleted: FileList;
     modified: FileList;
     except: FileList;
+};
+
+export type FileTrees = {
+    webdavFiles: FileTree;
+    localFiles: FileTree;
 };
 
 export type PreviousObject = {

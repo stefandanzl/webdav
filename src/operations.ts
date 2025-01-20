@@ -1,7 +1,7 @@
 import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
 import { join, dirname } from "./util";
-import { normalizePath } from "obsidian";
+import {  normalizePath } from "obsidian";
 import { Controller, FileList, Status } from "./const";
 
 const WEBDAV_HEADERS = { "Cache-Control": "no-cache, no-store, must-revalidate" };
@@ -337,6 +337,8 @@ export class Operations {
 
             // show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
             show && this.plugin.show("Finished checking files");
+            //@ts-ignore
+            this.plugin.modal?.renderFileTrees();
             this.plugin.setStatus(Status.NONE);
             return true;
         } catch (error) {

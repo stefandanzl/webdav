@@ -16,6 +16,7 @@ tasks:
   copy:
     cmds:
       - xcopy "{{.USER_WORKING_DIR}}\main.js" "{{.DIR_PLUGIN}}\main.js" /Y
+      - xcopy "{{.USER_WORKING_DIR}}\styles.css" "{{.DIR_PLUGIN}}\styles.css" /Y
   build:
     cmds:
       - npm run build

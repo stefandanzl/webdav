@@ -13,6 +13,10 @@ export async function launcher(plugin: Cloudr) {
     // plugin adds a settings tab so the user can configure various aspects of the plugin
     plugin.addSettingTab(new CloudrSettingsTab(plugin.app, plugin));
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    plugin.settingPrivate = (this.app as any).setting;
+    
+
     plugin.compare = new Compare(plugin);
     plugin.checksum = new Checksum(plugin);
     plugin.operations = new Operations(plugin);

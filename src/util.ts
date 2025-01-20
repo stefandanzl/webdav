@@ -89,3 +89,6 @@ export function fileTreesEmpty({ localFiles, webdavFiles }: { localFiles: FileTr
     this.show("Please open control panel to solve your file exceptions");
     return true;
 }
+
+
+
