@@ -2,7 +2,7 @@ import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
 import { join, dirname } from "./util";
 import {  normalizePath } from "obsidian";
-import { Controller, FileList, Status } from "./const";
+import { Controller, FileList,   Status } from "./const";
 
 const WEBDAV_HEADERS = { "Cache-Control": "no-cache, no-store, must-revalidate" };
 
@@ -329,7 +329,7 @@ export class Operations {
                 this.plugin.settings.exclusions
             );
             this.plugin.log(JSON.stringify(comparedFileTrees, null, 2));
-            this.plugin.fileTrees = comparedFileTrees;
+            this.plugin.fileTrees = comparedFileTrees ;
             // if (this.plugin.modal) {
             //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             // }

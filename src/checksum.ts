@@ -52,11 +52,11 @@ export class Checksum {
 
         if (this.plugin.mobile) {
             if (this.plugin.settings.skipHiddenMobile) {
-                directoriesMod.push(this.plugin.app.vault.configDir);
+                directoriesMod.push(this.plugin.app.vault.configDir+"/");
             }
         } else {
             if (this.plugin.settings.skipHiddenDesktop) {
-                directoriesMod.push(this.plugin.app.vault.configDir);
+                directoriesMod.push(this.plugin.app.vault.configDir+"/");
             }
         }
 
