@@ -15,7 +15,7 @@ export async function launcher(plugin: Cloudr) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugin.settingPrivate = (this.app as any).setting;
-    
+    plugin.tempExcludedFiles = {}
 
     plugin.compare = new Compare(plugin);
     plugin.checksum = new Checksum(plugin);

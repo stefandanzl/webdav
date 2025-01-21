@@ -31,10 +31,11 @@
  .webdav-file-tree {
     white-space: pre;
     min-height: 70vh;
-    overflow: auto;
+    max-height: 70vh;  /* Add this to make it scrollable */
+    overflow-y: auto;  /* Changed from just overflow: auto */
     user-select: text;
     padding-bottom: 10px;
- }
+}
  
  /* Sync status styling */
  .sync-status {
@@ -70,6 +71,7 @@
     margin-left: var(--size-4-2);
     padding: 3px 0;
     font-family: var(--font-monospace);
+    cursor: pointer;
  }
  
  /* Button styling */
@@ -78,3 +80,28 @@
     margin-bottom: var(--size-4-1);
     width: 100%;
  }
+
+ .sync-empty-message {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 200px;  /* or use vh units */
+}
+
+.sync-empty-text {
+    font-size: var(--font-ui-larger);  /* or 1.5em */
+    color: var(--text-success);
+    font-weight: var(--font-medium);
+}
+
+.path-disabled {
+    color: red;
+}
+
+.path-except-upload {
+    color: pink;
+}
+
+.path-except-download {
+    color: blue;
+}

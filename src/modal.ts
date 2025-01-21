@@ -1,6 +1,6 @@
 import { App, Modal } from "obsidian";
 import Cloudr from "./main";
-import { FileTree, FileTrees, PLUGIN_ID, Status } from "./const";
+import { FileTree, FileTrees, Location, PLUGIN_ID, Status, Type } from "./const";
 
 export class FileTreeModal extends Modal {
     fileTreeDiv: HTMLDivElement;
@@ -60,7 +60,6 @@ export class FileTreeModal extends Modal {
                     modified: 1,
                 },
             });
-            this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
         });
 
         /**
@@ -148,7 +147,6 @@ export class FileTreeModal extends Modal {
                         except: 1,
                     },
                 });
-                this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
 
             /**
@@ -169,7 +167,6 @@ export class FileTreeModal extends Modal {
                     },
                     webdav: {},
                 });
-                this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
 
             /**
@@ -190,7 +187,6 @@ export class FileTreeModal extends Modal {
                         except: -1,
                     },
                 });
-                this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
 
             /**
@@ -211,14 +207,21 @@ export class FileTreeModal extends Modal {
                     },
                     webdav: {},
                 });
-                this.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             });
         });
 
         const containDiv = mainDiv.createDiv({ cls: "webdav-content" });
         this.fileTreeDiv = containDiv.createDiv({ cls: "webdav-file-tree" });
+        // Save position
+        this.fileTreeDiv.addEventListener("scroll", (e) => {
+            this.plugin.lastScrollPosition = (e.target as HTMLElement).scrollTop;
+        });
 
-        this.plugin.operations.check();
+        if (!this.plugin.fileTrees) {
+            this.plugin.operations.check();
+        } else {
+            this.renderFileTrees();
+        }
     }
 
     onClose() {
@@ -248,7 +251,13 @@ export class FileTreeModal extends Modal {
         }
 
         // Helper function to render a section if it has entries
-        function renderSection(parent: HTMLElement, title: string, data: Record<string, string>) {
+        function renderSection(
+            plugin: Cloudr,
+            parent: HTMLElement,
+            title: string,
+            data: Record<string, string>,
+            parents?: { location?: Location; type: Type }
+        ) {
             if (Object.keys(data).length === 0) return;
 
             const sectionDiv = parent.createDiv({ cls: "sync-section" });
@@ -262,9 +271,85 @@ export class FileTreeModal extends Modal {
             const contentDiv = sectionDiv.createDiv({ cls: "sync-section-content" });
 
             Object.keys(data).forEach((path) => {
-                contentDiv.createDiv({
+                const pathDiv = contentDiv.createDiv({
                     cls: "sync-file-entry",
                     text: path,
+                });
+
+                pathDiv.onClickEvent((event) => {
+                    switch (event.button) {
+                        // Left Click
+                        case 0:
+                            if (!path.endsWith("/")) {
+                                plugin.app.workspace.openLinkText(path, ""); //   openFile(file: TFile, openState?: OpenViewState)
+                            }
+                            break;
+                        // Middle Click
+                        case 1:
+                            console.log("Middle Click", path);
+                            break;
+                        // Right Click
+                        case 2:
+                            if (!parents) {
+                                return;
+                            }
+                            if (parents.type === "except") {
+                                // check if defined
+                                if (!Object.keys(plugin.tempExcludedFiles).includes(path)) {
+                                    const location: Location = "localFiles";
+                                    const hash = plugin.fileTrees[location][parents.type][path];
+                                    plugin.tempExcludedFiles[path] = {
+                                        location,
+                                        type: "except",
+                                        hash,
+                                    };
+                                    plugin.fileTrees[location].modified[path] = hash;
+                                    pathDiv.addClass("path-except-upload");
+                                } else if (plugin.tempExcludedFiles[path].location === "localFiles") {
+                                    const location: Location = "webdavFiles";
+                                    const hash = plugin.fileTrees[location][parents.type][path];
+                                    plugin.tempExcludedFiles[path] = {
+                                        location,
+                                        type: "except",
+                                        hash,
+                                    };
+                                    plugin.fileTrees[location].modified[path] = hash;
+                                    delete plugin.fileTrees["localFiles"].modified[path];
+                                    pathDiv.removeClass("path-except-upload");
+                                    pathDiv.addClass("path-except-download");
+                                } else if (plugin.tempExcludedFiles[path].location === "webdavFiles") {
+                                    delete plugin.tempExcludedFiles[path];
+                                    
+                                    delete plugin.fileTrees["webdavFiles"].modified[path];
+                                    pathDiv.removeClass("path-except-download");
+                                }
+                                return;
+                            }
+
+                            if (Object.keys(plugin.tempExcludedFiles).includes(path)) {
+                                const hash = plugin.tempExcludedFiles[path].hash;
+                                delete plugin.tempExcludedFiles[path];
+                                plugin.fileTrees[parents?.location as keyof FileTrees][parents?.type as keyof FileTree][path] = hash;
+                                pathDiv.removeClass("path-disabled");
+                            } else {
+                                // is not persistent on app restart!
+                                const hash = plugin.fileTrees[parents.location as keyof FileTrees][parents.type as keyof FileTree][path];
+                                //@ts-ignore
+                                plugin.tempExcludedFiles = {
+                                    ...plugin.tempExcludedFiles,
+                                    [path]: { location: parents.location, type: parents.type, hash: hash },
+                                };
+                                delete plugin.fileTrees[parents.location as keyof FileTrees][parents.type as keyof FileTree][path];
+                                pathDiv.addClass("path-disabled");
+                            }
+
+                            // sync: check if path is in tempExcluded
+                            // save: don't save the current hash for path
+                            console.log(plugin.tempExcludedFiles);
+                            break;
+                        default:
+                            break;
+                    }
                 });
             });
         }
@@ -282,7 +367,14 @@ export class FileTreeModal extends Modal {
                 });
 
                 ["added", "deleted", "modified"].forEach((type) => {
-                    renderSection(locationDiv, type.charAt(0).toUpperCase() + type.slice(1), locationData[type as keyof FileTree]);
+                    renderSection(
+                        this.plugin,
+                        locationDiv,
+                        type.charAt(0).toUpperCase() + type.slice(1),
+                        locationData[type as keyof FileTree],
+                        //@ts-ignore
+                        { location, type }
+                    );
                 });
             }
         });
@@ -293,9 +385,10 @@ export class FileTreeModal extends Modal {
                 cls: "sync-location-title",
                 text: "File exceptions",
             });
-            renderSection(locationDiv, "Except", this.plugin.fileTrees.localFiles.except);
+            renderSection(this.plugin, locationDiv, "Except", this.plugin.fileTrees.localFiles.except, { type: "except" });
         }
-
+        // Restore scroll position after content is rendered
+        this.fileTreeDiv.scrollTop = this.plugin.lastScrollPosition;
         // return mainContainer;
     }
 }

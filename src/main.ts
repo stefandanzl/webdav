@@ -7,7 +7,7 @@ import { Compare } from "./compare";
 import { Operations } from "./operations";
 import { join, sha1 } from "./util";
 import { launcher } from "./setup";
-import { FileList, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS, STATUS_ITEMS, FileTrees } from "./const";
+import { FileList, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS, STATUS_ITEMS, FileTrees, Hash, Location, Type } from "./const";
 
 export default class Cloudr extends Plugin {
     doLog: boolean;
@@ -53,6 +53,15 @@ export default class Cloudr extends Plugin {
     loadingTotal: number;
     loadingProcessed: number;
     checkTime: number;
+    lastScrollPosition: number;
+    tempExcludedFiles: Record<
+        string,
+        {
+            location: Location;
+            type: Type;
+            hash: Hash;
+        }
+    >;
 
     onload() {
         launcher(this);
@@ -247,19 +256,65 @@ export default class Cloudr extends Plugin {
             this.setStatus(Status.SAVE);
             try {
                 // if (checkLocal || emptyObj(this.allFiles.local)) {
-
+                // const oldPrevData = this.prevData.files;
                 /**
                  * IMPORTANT! generateLocalHashTree must be given false in order for ALL files to be properly added to your previous files.
                  * Otherwise they may be seen as "added" or "deleted"
                  */
-                this.prevData.files = await this.checksum.generateLocalHashTree(false);
-                // } else {
-                //     this.prevData.files = this.allFiles.local;
-                // }
+                const files = await this.checksum.generateLocalHashTree(false);
+
+                Object.keys(this.tempExcludedFiles).forEach((path) => {
+                    // we have to differentiate between added, deleted and edited.
+                    if (this.tempExcludedFiles[path].location === "localFiles"){
+                    switch (this.tempExcludedFiles[path].type) {
+                        case "added":
+                            // Do not write to prevData
+
+                            break;
+                    case "deleted":
+                            // Write to prevData
+                            files[path] = this.tempExcludedFiles[path].hash;
+                        break;
+                    case "modified":
+                        // Write old hash again to prevData
+                        files[path] = this.prevData.files[path];
+                        break;
+                        default:
+
+                            break;
+                    }
+                } else if (this.tempExcludedFiles[path].location === "webdavFiles"){
+                    switch (this.tempExcludedFiles[path].type) {
+                        case "added":
+                            // Do not write to prevData
+
+                            break;
+                    case "deleted":
+                            // Write to prevData
+                            // files[path] = this.tempExcludedFiles[path].hash;
+                        break;
+                    case "modified":
+                        // Write old hash again to prevData
+                        // files[path] = this.prevData.files[path];
+                        break;
+                        default:
+
+                            break;
+                    }
+                } else {
+                    // except
+                    // will already not be treated by sync
+                    // TODO: add additional click handler for except area
+                }
+
+
+                    files[path as keyof FileList] = this.prevData.files[path as keyof PreviousObject] ;
+                });
+
                 this.prevData = {
                     date: Date.now(),
                     error: this.prevData.error,
-                    files: this.prevData.files,
+                    files,
                     except: this.fileTrees.localFiles.except,
                 };
 

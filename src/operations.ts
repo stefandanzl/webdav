@@ -337,7 +337,7 @@ export class Operations {
 
             // show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
             show && this.plugin.show("Finished checking files");
-            //@ts-ignore
+            this.plugin.lastScrollPosition = 0;
             this.plugin.modal?.renderFileTrees();
             this.plugin.setStatus(Status.NONE);
             return true;
@@ -515,6 +515,8 @@ export class Operations {
             await Promise.all(operations);
             this.plugin.setStatus(Status.NONE)
 
+            this.cleanUp();
+
             show && this.plugin.show("Sync completed - checking again");
             await this.plugin.saveState();
             await this.check(true);
@@ -532,5 +534,21 @@ export class Operations {
             // }
             this.plugin.finished();
         }
+    }
+
+    cleanUp(){
+        this.plugin.tempExcludedFiles = {}
+      
+        // Object.keys(this.plugin.tempExcludedFiles).forEach((path)=>{
+        //     if (this.plugin.tempExcludedFiles[path].type === "except"){
+        //         // are already gone
+        //         // delete this.plugin.fileTrees.localFiles.except[path] 
+        //         // delete this.plugin.fileTrees.webdavFiles.except[path] 
+
+        //         delete this.plugin.tempExcludedFiles[path]
+        //     } else {
+        //         delete this.plugin.tempExcludedFiles[path]
+        //     }
+        // })
     }
 }

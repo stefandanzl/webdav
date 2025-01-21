@@ -102,7 +102,12 @@ export const STATUS_ITEMS: Record<Status, StatusItem> = {
     },
 };
 
-export type FileList = Record<string, string>;
+export type Path = string;
+export type Hash = string;
+export type Location = "webdavFiles" | "localFiles";
+export type Type = "added" | "deleted" | "modified" | "except";
+
+export type FileList = Record<Path, Hash>;
 
 export type FileTree = {
     added: FileList;
