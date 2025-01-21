@@ -310,12 +310,13 @@ export default class Cloudr extends Plugin {
 
                     files[path as keyof FileList] = this.prevData.files[path as keyof PreviousObject] ;
                 });
+                const newExcept = this.compare.checkExistKey(this.fileTrees.localFiles.except, this.localFiles)
 
                 this.prevData = {
                     date: Date.now(),
                     error: this.prevData.error,
                     files,
-                    except: this.fileTrees.localFiles.except,
+                    except: newExcept,
                 };
 
                 await this.app.vault.adapter.write(this.prevPath, JSON.stringify(this.prevData, null, 2));

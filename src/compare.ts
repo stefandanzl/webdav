@@ -58,17 +58,24 @@ export class Compare {
     async comparePreviousFileTree(previousFiles: FileList, previousExcept: FileList, currentFiles: FileList) {
         // const previousFiles: FileList = previousObj.files;
 
-        const { removedItems, remainingItems } = this.checkExistKeyBoth(currentFiles, previousExcept);
-        const added: FileList = {};
-        const deleted: FileList = {};
-        const modified: FileList = {};
-        const except: FileList = remainingItems;
+        // const [removedItems, remainingItems] = this.checkExistKeyBoth(currentFiles, previousExcept);
+        // const added: FileList = {};
+        // const deleted: FileList = {};
+        // const modified: FileList = {};
+        // const except: FileList = remainingItems;
 
-        console.log("comparePreviousFileTree-1",except)
+        const fileTree: FileTree = {
+            added: {},
+            deleted: {},
+            modified: {},
+            except: this.checkExistKey(previousExcept, currentFiles)
+        };
+
+        console.log("comparePreviousFileTree-1", fileTree.except);
 
         // This could be wrong
-        currentFiles = removedItems;
-        console.log("comparePreviousFileTree-2",removedItems)
+        // currentFiles = removedItems;
+        console.log("comparePreviousFileTree-2", currentFiles);
 
         // Identify added and modified files
         for (const [currentFile, currentHash] of Object.entries(currentFiles)) {
@@ -77,9 +84,9 @@ export class Compare {
             if (previousFiles[currentFile] === currentFiles[currentFile]) {
                 // nothing
             } else if (!matchingHash) {
-                added[currentFile] = currentHash;
+                fileTree.added[currentFile] = currentHash;
             } else if (matchingHash !== currentHash) {
-                modified[currentFile] = currentHash;
+                fileTree.modified[currentFile] = currentHash;
             }
         }
 
@@ -100,31 +107,42 @@ export class Compare {
         for (const [file, hash] of Object.entries(previousFiles)) {
             if (!currentFiles.hasOwnProperty(file)) {
                 // The key is not in the current object
-                deleted[file] = previousFiles[file];
+                fileTree.deleted[file] = previousFiles[file];
                 this.plugin.log("HAAAA ", file);
             }
         }
 
-        return { added, deleted, modified, except };
+        return fileTree;
     }
 
+    /**
+     *  Keeps only the items from sourceObject that also exist in referenceObject
+     */
     checkExistKey = (sourceObject: FileList, referenceObject: FileList) => {
-        return Object.fromEntries(Object.entries(sourceObject).filter(([key]) => key in referenceObject));
+        return Object.fromEntries(
+            // Convert back to object
+            Object.entries(sourceObject) // Convert object to [key, value] pairs
+                .filter(([key]) => key in referenceObject) // Keep only if key exists in reference
+        );
     };
 
+    /** This function splits sourceObject into two objects:
+    * - removedItems: items that don't exist in referenceObject
+    * - remainingItems: items that do exist in referenceObject
+    */
     checkExistKeyBoth = (sourceObject: FileList, referenceObject: FileList) => {
         const removedItems: FileList = {};
         const remainingItems: FileList = {};
-
+    
         for (const key in sourceObject) {
             if (Object.prototype.hasOwnProperty.call(referenceObject, key)) {
-                remainingItems[key] = sourceObject[key];
+                remainingItems[key] = sourceObject[key];  // Key exists in both
             } else {
-                removedItems[key] = sourceObject[key];
+                removedItems[key] = sourceObject[key];    // Key only in source
             }
         }
-
-        return { removedItems, remainingItems };
+    
+        return [ removedItems, remainingItems ];
     };
 
     filterExclusions = (
@@ -221,31 +239,28 @@ export class Compare {
             const filteredPrevTree = this.filterExclusions(prevFileTree.files, exclusions);
             const filteredExcepts = this.filterExclusions(prevFileTree.except, exclusions);
 
-            console.log("CompareFileTrees-R4",filteredPrevTree)
-            console.log("CompareFileTrees-R3",filteredExcepts)
-
+            console.log("CompareFileTrees-R4", filteredPrevTree);
+            console.log("CompareFileTrees-R3", filteredExcepts);
 
             const [webdavFilesBranch, localFilesBranch] = await Promise.all([
                 this.comparePreviousFileTree(filteredPrevTree, filteredExcepts, webdavFiles),
                 this.comparePreviousFileTree(filteredPrevTree, filteredExcepts, localFiles),
             ]);
 
+            console.log("CompareFileTrees-R2", localFilesBranch);
 
-            console.log("CompareFileTrees-R2",localFilesBranch)
+            webdavFilesBranch.except = { ...prevFileTree.except, ...webdavFilesBranch.except };
+            localFilesBranch.except = { ...prevFileTree.except, ...localFilesBranch.except };
 
-            webdavFilesBranch.except = {...prevFileTree.except, ...webdavFilesBranch.except }
-            localFilesBranch.except =  {...prevFileTree.except,  ...localFilesBranch.except }
-
-            console.log("CompareFileTrees-R1",localFilesBranch)
-            
+            console.log("CompareFileTrees-R1", localFilesBranch);
 
             const { webdavMatch, localMatch } = this.compareFileTreesExcept(webdavFilesBranch, localFilesBranch);
-            console.log("CompareFileTrees-1",webdavMatch.deleted)
+            console.log("CompareFileTrees-1", webdavMatch.deleted);
             // Post-process deleted files
             webdavMatch.deleted = this.checkExistKey(webdavMatch.deleted, localFiles);
             localMatch.deleted = this.checkExistKey(localMatch.deleted, webdavFiles);
 
-            console.log("CompareFileTrees-2",webdavMatch.deleted)
+            console.log("CompareFileTrees-2", webdavMatch.deleted);
             return { webdavFiles: webdavMatch, localFiles: localMatch };
         } catch (error) {
             console.error("File comparison error:", error);
