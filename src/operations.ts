@@ -286,6 +286,12 @@ export class Operations {
         }
     }
 
+    /**
+     * This creates a list of files with predefined actions to take.
+     * @param show
+     * @param exclude
+     * @returns
+     */
     async check(show = true, exclude = true) {
         if (this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
             show && this.plugin.show(`Checking not possible, currently ${this.plugin.status}`);
@@ -319,9 +325,6 @@ export class Operations {
             this.plugin.allFiles.local = localFiles;
             this.plugin.allFiles.webdav = webdavFiles;
 
-            this.plugin.log("WEBDAV:", webdavFiles);
-            this.plugin.log("LOCAL", localFiles);
-
             const comparedFileTrees = await this.plugin.compare.compareFileTrees(
                 webdavFiles,
                 localFiles,
@@ -330,6 +333,7 @@ export class Operations {
             );
             this.plugin.log(JSON.stringify(comparedFileTrees, null, 2));
             this.plugin.fileTrees = comparedFileTrees;
+            this.plugin.fullFileTrees = structuredClone(this.plugin.fileTrees);
             // if (this.plugin.modal) {
             //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             // }
@@ -341,11 +345,12 @@ export class Operations {
                 if (this.plugin.calcTotal(this.plugin.fileTrees.localFiles.except) > 0) {
                     this.plugin.show(
                         "Found file sync exceptions! Open Webdav Control Panel and either PUSH/PULL or resolve each case separately!",
-                        5
+                        5000
                     );
                 }
             }
             this.plugin.lastScrollPosition = 0;
+            this.plugin.tempExcludedFiles = {};
             this.plugin.modal?.renderFileTrees();
             this.plugin.setStatus(Status.NONE);
             return true;
@@ -357,6 +362,13 @@ export class Operations {
             throw error;
         }
     }
+
+    /**
+     * Main Sync function for this plugin. This manages all the file exchanging
+     * @param controller
+     * @param show
+     * @returns
+     */
     async sync(controller: Controller, show = true) {
         if (this.plugin.prevData.error) {
             show && this.plugin.show("Error detected - please clear in control panel or force action by retriggering action");
@@ -404,7 +416,11 @@ export class Operations {
             const total = this.plugin.calcTotal(...operationsToCount.filter(Boolean));
 
             if (total === 0) {
-                show && this.plugin.show("No files to sync");
+                if (Object.keys(this.plugin.fileTrees.localFiles.except).length > 0) {
+                    show && this.plugin.show("You have file sync exceptions. Clear them in Webdav Control Panel.",5000);
+                } else {
+                    show && this.plugin.show("No files to sync");
+                }
                 this.plugin.setStatus(Status.NONE);
                 return;
             }

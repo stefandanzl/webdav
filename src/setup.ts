@@ -1,4 +1,4 @@
-import Cloudr  from "./main";
+import Cloudr from "./main";
 import { CloudrSettingsTab } from "./settings";
 import { Compare } from "./compare";
 import { Checksum } from "./checksum";
@@ -15,7 +15,7 @@ export async function launcher(plugin: Cloudr) {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     plugin.settingPrivate = (this.app as any).setting;
-    plugin.tempExcludedFiles = {}
+    plugin.tempExcludedFiles = {};
 
     plugin.compare = new Compare(plugin);
     plugin.checksum = new Checksum(plugin);
@@ -29,8 +29,8 @@ export async function launcher(plugin: Cloudr) {
 
     plugin.allFiles = {
         local: {},
-        webdav: {}
-    }
+        webdav: {},
+    };
 
     if (plugin.settings.enableRibbons) {
         plugin.addRibbonIcon("upload-cloud", "PUSH to Webdav", () => {
@@ -105,63 +105,31 @@ export async function launcher(plugin: Cloudr) {
 
     plugin.loadingTotal = -1;
 
+    // In your main plugin class
+    plugin.statusBar = plugin.addStatusBarItem();
+    plugin.statusBar.addClass("plugin-sync"); // Main container class
+    plugin.statusBar.setAttribute("aria-label", "Uninitialized");
+    plugin.statusBar.setAttribute("data-tooltip-position", "top");
 
+    // Create inner container
+    const innerDiv = plugin.statusBar.createDiv("status-bar-item-segment");
 
-// In your main plugin class
-plugin.statusBar = plugin.addStatusBarItem();
-plugin.statusBar.addClass('plugin-sync'); // Main container class
-plugin.statusBar.setAttribute('aria-label', 'Uninitialized');
-plugin.statusBar.setAttribute('data-tooltip-position', 'top');
+    // Create span for icon
+    plugin.iconSpan = innerDiv.createSpan({
+        cls: ["status-bar-item-icon", "sync-status-icon"],
+    });
 
-// Create inner container
-const innerDiv = plugin.statusBar.createDiv('status-bar-item-segment');
+    // Set the icon
+    setIcon(plugin.iconSpan, "refresh-cw-off");
 
-// Create span for icon
-plugin.iconSpan = innerDiv.createSpan({
-   cls: ['status-bar-item-icon', 'sync-status-icon']
-});
+    // Or if you need more control over the classes:
+    plugin.statusBar.addClass("status-bar-item", "plugin-sync");
 
-// Set the icon
-setIcon(plugin.iconSpan, 'refresh-cw-off');
-
-// Or if you need more control over the classes:
-plugin.statusBar
-   .addClass('status-bar-item', 'plugin-sync');
-
-
-// Or more Obsidian-style
-plugin.statusBar.onClickEvent(() => {
-    // Your click handler
-    plugin.displayModal();
-});
-
-
-
-
-
-
-
-
-
-
-
-    // // Optional: Apply additional styling if needed
-    // plugin.statusBar.style.display = "flex"; // Make the status bar a flex container
-
-    // plugin.statusBar.style.width = "25px";
-    // plugin.statusBar.style.color = "green";
-
-    // plugin.statusBar.classList.add("status-bar-item");
-    // plugin.statusBar.classList.add("mod-clickable");
-
-    // // plugin.statusBar.setText('OFF');
-    // plugin.statusBar.addEventListener("click", () => {
-    //     if (plugin.app.lastEvent && plugin.app.lastEvent.ctrlKey) {
-    //         console.log("TTTTTTTTTTTTTTTTT");
-    //     } else {
-    //         plugin.displayModal();
-    //     }
-    // });
+    // Or more Obsidian-style
+    plugin.statusBar.onClickEvent(() => {
+        // Your click handler
+        plugin.displayModal();
+    });
 
     plugin.addCommand({
         id: "display-modal",

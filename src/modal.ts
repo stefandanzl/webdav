@@ -4,6 +4,16 @@ import { FileTree, FileTrees, Location, PLUGIN_ID, Status, Type } from "./const"
 
 export class FileTreeModal extends Modal {
     fileTreeDiv: HTMLDivElement;
+    pathRenderObject: Record<string, HTMLDivElement>;
+    sectionRenderObject: Record<
+        string,
+        {
+            type: Type;
+            location: Location;
+            element: HTMLDivElement;
+            isEnabled: boolean;
+        }
+    >;
     constructor(
         app: App,
         public plugin: Cloudr
@@ -14,6 +24,9 @@ export class FileTreeModal extends Modal {
     onOpen() {
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const { titleEl, modalEl, contentEl, containerEl } = this;
+
+        this.pathRenderObject = {};
+        this.sectionRenderObject = {};
 
         modalEl.addClass("webdav-modal");
         titleEl.setText("Webdav Control Panel");
@@ -237,7 +250,8 @@ export class FileTreeModal extends Modal {
 
         // Check if there's anything to sync
         const hasAnyChanges = ["webdavFiles", "localFiles"].some((location) => {
-            const locationData = this.plugin.fileTrees[location as keyof FileTrees];
+            // IMPORTANT! NOT USING fileTrees here because it will be modified! For rendering using an original twin
+            const locationData = this.plugin.fullFileTrees[location as keyof FileTrees];
             return Object.values(locationData).some((section) => Object.keys(section).length > 0);
         });
 
@@ -256,25 +270,94 @@ export class FileTreeModal extends Modal {
             parent: HTMLElement,
             title: string,
             data: Record<string, string>,
-            parents?: { location?: Location; type: Type }
+            parents: { location: Location; type: Type }
         ) {
             if (Object.keys(data).length === 0) return;
 
             const sectionDiv = parent.createDiv({ cls: "sync-section" });
 
-            // eslint-disable-next-line @typescript-eslint/no-unused-vars
             const titleDiv = sectionDiv.createDiv({
-                cls: "sync-section-title",
+                cls: ["sync-section-title"],
                 text: title,
+            });
+
+            if (parents.location + parents.type in plugin.modal.sectionRenderObject) {
+                if (!plugin.modal.sectionRenderObject[parents.location + parents.type].isEnabled) {
+                    titleDiv.addClass("file-user-disabled");
+                }
+            } else {
+                plugin.modal.sectionRenderObject[parents.location + parents.type] = {
+                    type: parents.type,
+                    location: parents.location as Location,
+                    element: titleDiv,
+                    isEnabled: true,
+                };
+            }
+
+            titleDiv.onClickEvent((event) => {
+                switch (event.button) {
+                    case 0:
+                        if (!plugin.modal.sectionRenderObject[parents.location + parents.type].isEnabled) {
+                            // ENABLE
+                            plugin.modal.sectionRenderObject[parents.location + parents.type].isEnabled = true;
+                            plugin.modal.sectionRenderObject[parents.location + parents.type].element.removeClass("file-user-disabled");
+
+                            Object.entries(plugin.tempExcludedFiles).forEach(([pa, {location, type, hash}]) => {
+                                if (location === parents.location && type === parents.type){
+                                    delete plugin.tempExcludedFiles[pa];
+                                    plugin.fileTrees[parents?.location as keyof FileTrees][parents?.type as keyof FileTree][pa] = hash;
+                                    plugin.modal.pathRenderObject[pa]?.removeClass("file-user-disabled");
+                                }
+                            });
+                        } else {
+                            // DISABLE
+                            plugin.modal.sectionRenderObject[parents.location + parents.type].isEnabled = false;
+                            plugin.modal.sectionRenderObject[parents.location + parents.type].element.addClass("file-user-disabled");
+
+                            Object.entries(plugin.fileTrees[parents.location][parents.type]).forEach(([pa, ha]) => {
+                                plugin.tempExcludedFiles[pa] = {
+                                    location: parents.location,
+                                    type: parents.type,
+                                    hash: ha,
+                                };
+
+                                delete plugin.fileTrees[parents.location][parents.type][pa];
+                                plugin.modal.pathRenderObject[pa].addClass("file-user-disabled");
+                            });
+                        }
+
+                        break;
+
+                    default:
+                        break;
+                }
             });
 
             const contentDiv = sectionDiv.createDiv({ cls: "sync-section-content" });
 
             Object.keys(data).forEach((path) => {
+                const classes = ["sync-file-entry"];
+                if (path in plugin.tempExcludedFiles) {
+                    if (plugin.tempExcludedFiles[path].type === "except") {
+                        if (plugin.tempExcludedFiles[path].location === "localFiles") {
+                            classes.push("file-user-upload");
+                        } else {
+                            classes.push("file-user-download");
+                        }
+                    } else {
+                        classes.push("file-user-disabled");
+                    }
+                } else {
+                    if (parents?.type === "except") {
+                        classes.push("file-user-disabled");
+                    }
+                }
                 const pathDiv = contentDiv.createDiv({
-                    cls: "sync-file-entry",
+                    cls: classes,
                     text: path,
                 });
+
+                plugin.modal.pathRenderObject[path] = pathDiv;
 
                 pathDiv.onClickEvent((event) => {
                     switch (event.button) {
@@ -283,29 +366,67 @@ export class FileTreeModal extends Modal {
                             if (!parents) {
                                 return;
                             }
+
                             if (Object.keys(plugin.tempExcludedFiles).includes(path)) {
+                                // ENABLE
                                 const hash = plugin.tempExcludedFiles[path].hash;
                                 delete plugin.tempExcludedFiles[path];
                                 plugin.fileTrees[parents?.location as keyof FileTrees][parents?.type as keyof FileTree][path] = hash;
-                                pathDiv.removeClass("path-disabled");
+                                pathDiv.removeClass("file-user-disabled");
+                                if (path.endsWith("/")) {
+                                    Object.keys(plugin.tempExcludedFiles).forEach((pa) => {
+                                        if (pa.startsWith(path)) {
+                                            const ha = plugin.tempExcludedFiles[pa].hash;
+                                            delete plugin.tempExcludedFiles[pa];
+                                            plugin.fileTrees[parents?.location as keyof FileTrees][parents?.type as keyof FileTree][pa] =
+                                                ha;
+                                            plugin.modal.pathRenderObject[pa]?.removeClass("file-user-disabled");
+                                        }
+                                    });
+                                }
                             } else {
-                                // is not persistent on app restart!
+                                // DISABLE
                                 const hash = plugin.fileTrees[parents.location as keyof FileTrees][parents.type as keyof FileTree][path];
-                                //@ts-ignore
-                                plugin.tempExcludedFiles = {
-                                    ...plugin.tempExcludedFiles,
-                                    [path]: { location: parents.location, type: parents.type, hash: hash },
-                                };
+
+                                plugin.tempExcludedFiles[path] = { location: parents.location as Location, type: parents.type, hash: hash };
+
                                 delete plugin.fileTrees[parents.location as keyof FileTrees][parents.type as keyof FileTree][path];
-                                pathDiv.addClass("path-disabled");
+                                pathDiv.addClass("file-user-disabled");
+
+                                if (path.endsWith("/")) {
+                                    Object.entries(plugin.fileTrees[parents?.location as keyof FileTrees][parents.type]).forEach(
+                                        ([pa, ha]) => {
+                                            if (pa.startsWith(path)) {
+                                                plugin.tempExcludedFiles[pa] = {
+                                                    location: parents.location as Location,
+                                                    type: parents.type,
+                                                    hash: ha,
+                                                };
+
+                                                delete plugin.fileTrees[parents.location as keyof FileTrees][
+                                                    parents.type as keyof FileTree
+                                                ][pa];
+                                                plugin.modal.pathRenderObject[pa].addClass("file-user-disabled");
+                                            }
+                                        }
+                                    );
+                                }
                             }
 
                             break;
                         // Middle Click
                         case 1:
-                            if (!(path.endsWith("/") || path.startsWith(plugin.app.vault.configDir))) {
-
-                                plugin.app.workspace.openLinkText(path, ""); //   openFile(file: TFile, openState?: OpenViewState)
+                            if (
+                                !(
+                                    path.startsWith(plugin.app.vault.configDir) ||
+                                    (parents?.type === "deleted" && parents?.location === "localFiles")
+                                )
+                            ) {
+                                if (path.endsWith("/")) {
+                                    //
+                                } else {
+                                    plugin.app.workspace.openLinkText(path, "", "tab"); //   openFile(file: TFile, openState?: OpenViewState)
+                                }
                             }
                             break;
                         // Right Click
@@ -316,6 +437,7 @@ export class FileTreeModal extends Modal {
                             if (parents.type === "except") {
                                 // check if defined
                                 if (!Object.keys(plugin.tempExcludedFiles).includes(path)) {
+                                    // UPLOAD
                                     const location: Location = "localFiles";
                                     const hash = plugin.fileTrees[location][parents.type][path];
                                     plugin.tempExcludedFiles[path] = {
@@ -324,8 +446,12 @@ export class FileTreeModal extends Modal {
                                         hash,
                                     };
                                     plugin.fileTrees[location].modified[path] = hash;
-                                    pathDiv.addClass("path-except-upload");
+                                    delete plugin.fileTrees.webdavFiles.except[path];
+                                    delete plugin.fileTrees.localFiles.except[path];
+
+                                    pathDiv.addClass("file-user-upload");
                                 } else if (plugin.tempExcludedFiles[path].location === "localFiles") {
+                                    // DOWNLOAD
                                     const location: Location = "webdavFiles";
                                     const hash = plugin.fileTrees[location][parents.type][path];
                                     plugin.tempExcludedFiles[path] = {
@@ -335,18 +461,21 @@ export class FileTreeModal extends Modal {
                                     };
                                     plugin.fileTrees[location].modified[path] = hash;
                                     delete plugin.fileTrees["localFiles"].modified[path];
-                                    pathDiv.removeClass("path-except-upload");
-                                    pathDiv.addClass("path-except-download");
+                                    pathDiv.removeClass("file-user-upload");
+                                    pathDiv.addClass("file-user-download");
                                 } else if (plugin.tempExcludedFiles[path].location === "webdavFiles") {
+                                    // RESET TO EXCEPT
+                                    const hash = plugin.fileTrees.webdavFiles[parents.type][path];
                                     delete plugin.tempExcludedFiles[path];
-                                    
+
                                     delete plugin.fileTrees["webdavFiles"].modified[path];
-                                    pathDiv.removeClass("path-except-download");
+                                    pathDiv.removeClass("file-user-download");
+
+                                    plugin.fileTrees.webdavFiles.except[path] = hash;
+                                    plugin.fileTrees.localFiles.except[path] = hash;
                                 }
                                 return;
                             }
-
-                          
 
                             // sync: check if path is in tempExcluded
                             // save: don't save the current hash for path
@@ -361,7 +490,8 @@ export class FileTreeModal extends Modal {
 
         // Render each location if it has any changes
         ["webdavFiles", "localFiles"].forEach((location) => {
-            const locationData = this.plugin.fileTrees[location as keyof FileTrees];
+            // IMPORTANT: using copy of fileTrees for rendering it in entirety and then adding formatting
+            const locationData = this.plugin.fullFileTrees[location as keyof FileTrees];
             const hasChanges = Object.values(locationData).some((section) => Object.keys(section).length > 0);
 
             if (hasChanges) {
@@ -384,13 +514,16 @@ export class FileTreeModal extends Modal {
             }
         });
 
-        if (Object.keys(this.plugin.fileTrees.localFiles.except).length > 0) {
+        if (Object.keys(this.plugin.fullFileTrees.localFiles.except).length > 0) {
             const locationDiv = mainContainer.createDiv({ cls: "sync-location" });
             locationDiv.createDiv({
                 cls: "sync-location-title",
                 text: "File exceptions",
             });
-            renderSection(this.plugin, locationDiv, "Except", this.plugin.fileTrees.localFiles.except, { type: "except" });
+            renderSection(this.plugin, locationDiv, "Except", this.plugin.fullFileTrees.localFiles.except, {
+                type: "except",
+                location: "localFiles",
+            });
         }
         // Restore scroll position after content is rendered
         this.fileTreeDiv.scrollTop = this.plugin.lastScrollPosition;

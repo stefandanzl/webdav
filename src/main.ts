@@ -29,6 +29,7 @@ export default class Cloudr extends Plugin {
     showModal: boolean;
     webdavClient: WebDAVClient;
     fileTrees: FileTrees;
+    fullFileTrees: FileTrees;
     allFiles: {
         local: FileList;
         webdav: FileList;
@@ -310,16 +311,8 @@ export default class Cloudr extends Plugin {
 
                     files[path as keyof FileList] = this.prevData.files[path as keyof PreviousObject] ;
                 });
-                // console.log("saveState-1",this.prevData.except)
-                // let newExcept = this.compare.checkExistKey(this.prevData.except, files)
-                // console.log("saveState-2",newExcept)
-
-                // //PROBABLY USELESS
+  
                 const newExcept = this.compare.checkExistKey(this.fileTrees.localFiles.except, files)
-                // console.log("saveState-3",newExcept)
-
-                
-
 
                 this.prevData = {
                     date: Date.now(),
@@ -401,8 +394,12 @@ export default class Cloudr extends Plugin {
         this.modal.open();
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-inferrable-types
-    show(message: string = "Alert!", duration?: number) {
+    /**
+     * 
+     * @param message - What is on your Toast?
+     * @param duration - Time in milliseconds
+     */
+    show(message: string, duration?: number) {
         if (this.notice) {
             this.notice.hide();
         }

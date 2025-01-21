@@ -65,6 +65,7 @@
     font-weight: var(--font-bold);
     margin-bottom: 5px;
     color: var(--text-muted);
+    cursor: pointer;
  }
  
  .sync-file-entry {
@@ -94,14 +95,14 @@
     font-weight: var(--font-medium);
 }
 
-.path-disabled {
-    color: red;
+.file-user-disabled {
+    color: grey;
 }
 
-.path-except-upload {
+.file-user-upload {
     color: pink;
 }
 
-.path-except-download {
+.file-user-download {
     color: blue;
 }

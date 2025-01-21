@@ -21,19 +21,12 @@ export class Compare {
             }
         }
 
-        // console.log("GUGU")
-
         // Identify where hashes didn't change and remove them from fileTree, as they didn't change
         for (const file1 in webdavFiles.added) {
             if (localFiles.added[file1] === webdavFiles.added[file1]) {
                 delete webdavFiles.added[file1];
                 delete localFiles.added[file1];
             } else if (localFiles.added[file1]) {
-                // if(localFiles.added[file1] === webdavFiles.added[file1]){
-
-                //   delete webdavFiles.added[file1]
-                //   delete localFiles.added[file1]
-                // }
                 webdavFiles.except[file1] = webdavFiles.added[file1];
                 localFiles.except[file1] = localFiles.added[file1];
 
@@ -46,8 +39,6 @@ export class Compare {
                 delete webdavFiles.except[file1];
                 delete localFiles.except[file1];
                 // console.log("deleted Except:",file1);
-            } else {
-                // console.log("special Except: ",file1);
             }
         }
 
@@ -62,9 +53,6 @@ export class Compare {
             modified: {},
             except: this.checkExistKey(previousExcept, currentFiles),
         };
-
-        console.log("comparePreviousFileTree-1", fileTree.except);
-        console.log("comparePreviousFileTree-2", currentFiles);
 
         // Identify added and modified files
         for (const [currentFile, currentHash] of Object.entries(currentFiles)) {
@@ -82,13 +70,12 @@ export class Compare {
         /**
          * Correct previous except files that could now be found in modified
          */
-        Object.keys(previousExcept).forEach(path => {
-            if (path in fileTree.modified){
+        Object.keys(previousExcept).forEach((path) => {
+            if (path in fileTree.modified) {
                 fileTree.except[path] = fileTree.modified[path];
                 delete fileTree.modified[path];
             }
         });
-        
 
         // // Identify deleted files
         // for (const [prevFile, prevHash] of Object.entries(previous)) {
@@ -236,28 +223,20 @@ export class Compare {
             const filteredPrevTree = this.filterExclusions(prevFileTree.files, exclusions);
             const filteredExcepts = this.filterExclusions(prevFileTree.except, exclusions);
 
-            console.log("CompareFileTrees-R4", filteredPrevTree);
-            console.log("CompareFileTrees-R3", filteredExcepts);
-
             const [webdavFilesBranch, localFilesBranch] = await Promise.all([
                 this.comparePreviousFileTree(filteredPrevTree, filteredExcepts, webdavFiles),
                 this.comparePreviousFileTree(filteredPrevTree, filteredExcepts, localFiles),
             ]);
 
-            console.log("CompareFileTrees-R2", localFilesBranch);
-
             webdavFilesBranch.except = { ...prevFileTree.except, ...webdavFilesBranch.except };
             localFilesBranch.except = { ...prevFileTree.except, ...localFilesBranch.except };
 
-            console.log("CompareFileTrees-R1", localFilesBranch);
-
             const { webdavMatch, localMatch } = this.compareFileTreesExcept(webdavFilesBranch, localFilesBranch);
-            console.log("CompareFileTrees-1", webdavMatch.deleted);
+
             // Post-process deleted files
             webdavMatch.deleted = this.checkExistKey(webdavMatch.deleted, localFiles);
             localMatch.deleted = this.checkExistKey(localMatch.deleted, webdavFiles);
 
-            console.log("CompareFileTrees-2", webdavMatch.deleted);
             return { webdavFiles: webdavMatch, localFiles: localMatch };
         } catch (error) {
             console.error("File comparison error:", error);
