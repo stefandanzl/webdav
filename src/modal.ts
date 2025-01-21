@@ -280,13 +280,33 @@ export class FileTreeModal extends Modal {
                     switch (event.button) {
                         // Left Click
                         case 0:
-                            if (!path.endsWith("/")) {
-                                plugin.app.workspace.openLinkText(path, ""); //   openFile(file: TFile, openState?: OpenViewState)
+                            if (!parents) {
+                                return;
                             }
+                            if (Object.keys(plugin.tempExcludedFiles).includes(path)) {
+                                const hash = plugin.tempExcludedFiles[path].hash;
+                                delete plugin.tempExcludedFiles[path];
+                                plugin.fileTrees[parents?.location as keyof FileTrees][parents?.type as keyof FileTree][path] = hash;
+                                pathDiv.removeClass("path-disabled");
+                            } else {
+                                // is not persistent on app restart!
+                                const hash = plugin.fileTrees[parents.location as keyof FileTrees][parents.type as keyof FileTree][path];
+                                //@ts-ignore
+                                plugin.tempExcludedFiles = {
+                                    ...plugin.tempExcludedFiles,
+                                    [path]: { location: parents.location, type: parents.type, hash: hash },
+                                };
+                                delete plugin.fileTrees[parents.location as keyof FileTrees][parents.type as keyof FileTree][path];
+                                pathDiv.addClass("path-disabled");
+                            }
+
                             break;
                         // Middle Click
                         case 1:
-                            console.log("Middle Click", path);
+                            if (!(path.endsWith("/") || path.startsWith(plugin.app.vault.configDir))) {
+
+                                plugin.app.workspace.openLinkText(path, ""); //   openFile(file: TFile, openState?: OpenViewState)
+                            }
                             break;
                         // Right Click
                         case 2:
@@ -326,22 +346,7 @@ export class FileTreeModal extends Modal {
                                 return;
                             }
 
-                            if (Object.keys(plugin.tempExcludedFiles).includes(path)) {
-                                const hash = plugin.tempExcludedFiles[path].hash;
-                                delete plugin.tempExcludedFiles[path];
-                                plugin.fileTrees[parents?.location as keyof FileTrees][parents?.type as keyof FileTree][path] = hash;
-                                pathDiv.removeClass("path-disabled");
-                            } else {
-                                // is not persistent on app restart!
-                                const hash = plugin.fileTrees[parents.location as keyof FileTrees][parents.type as keyof FileTree][path];
-                                //@ts-ignore
-                                plugin.tempExcludedFiles = {
-                                    ...plugin.tempExcludedFiles,
-                                    [path]: { location: parents.location, type: parents.type, hash: hash },
-                                };
-                                delete plugin.fileTrees[parents.location as keyof FileTrees][parents.type as keyof FileTree][path];
-                                pathDiv.addClass("path-disabled");
-                            }
+                          
 
                             // sync: check if path is in tempExcluded
                             // save: don't save the current hash for path

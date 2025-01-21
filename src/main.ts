@@ -310,7 +310,16 @@ export default class Cloudr extends Plugin {
 
                     files[path as keyof FileList] = this.prevData.files[path as keyof PreviousObject] ;
                 });
-                const newExcept = this.compare.checkExistKey(this.fileTrees.localFiles.except, this.localFiles)
+                // console.log("saveState-1",this.prevData.except)
+                // let newExcept = this.compare.checkExistKey(this.prevData.except, files)
+                // console.log("saveState-2",newExcept)
+
+                // //PROBABLY USELESS
+                const newExcept = this.compare.checkExistKey(this.fileTrees.localFiles.except, files)
+                // console.log("saveState-3",newExcept)
+
+                
+
 
                 this.prevData = {
                     date: Date.now(),
@@ -325,8 +334,6 @@ export default class Cloudr extends Plugin {
             } catch (error) {
                 console.log("Error occurred while saving State. ", error);
                 console.error("SAVESTATE", error);
-                // this.saveStateError(true)
-                // this.prevData.error  = true
                 this.setError(true);
                 return error;
             } finally {

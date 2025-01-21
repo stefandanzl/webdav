@@ -56,25 +56,14 @@ export class Compare {
 
     // Function to compare two file trees and find changes
     async comparePreviousFileTree(previousFiles: FileList, previousExcept: FileList, currentFiles: FileList) {
-        // const previousFiles: FileList = previousObj.files;
-
-        // const [removedItems, remainingItems] = this.checkExistKeyBoth(currentFiles, previousExcept);
-        // const added: FileList = {};
-        // const deleted: FileList = {};
-        // const modified: FileList = {};
-        // const except: FileList = remainingItems;
-
         const fileTree: FileTree = {
             added: {},
             deleted: {},
             modified: {},
-            except: this.checkExistKey(previousExcept, currentFiles)
+            except: this.checkExistKey(previousExcept, currentFiles),
         };
 
         console.log("comparePreviousFileTree-1", fileTree.except);
-
-        // This could be wrong
-        // currentFiles = removedItems;
         console.log("comparePreviousFileTree-2", currentFiles);
 
         // Identify added and modified files
@@ -90,6 +79,17 @@ export class Compare {
             }
         }
 
+        /**
+         * Correct previous except files that could now be found in modified
+         */
+        Object.keys(previousExcept).forEach(path => {
+            if (path in fileTree.modified){
+                fileTree.except[path] = fileTree.modified[path];
+                delete fileTree.modified[path];
+            }
+        });
+        
+
         // // Identify deleted files
         // for (const [prevFile, prevHash] of Object.entries(previous)) {
         //   if (!current[prevFile]) {
@@ -102,13 +102,10 @@ export class Compare {
         //   }
         // }
 
-        //@ts-ignore
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for (const [file, hash] of Object.entries(previousFiles)) {
+        for (const [file] of Object.entries(previousFiles)) {
             if (!currentFiles.hasOwnProperty(file)) {
                 // The key is not in the current object
                 fileTree.deleted[file] = previousFiles[file];
-                this.plugin.log("HAAAA ", file);
             }
         }
 
@@ -127,22 +124,22 @@ export class Compare {
     };
 
     /** This function splits sourceObject into two objects:
-    * - removedItems: items that don't exist in referenceObject
-    * - remainingItems: items that do exist in referenceObject
-    */
+     * - removedItems: items that don't exist in referenceObject
+     * - remainingItems: items that do exist in referenceObject
+     */
     checkExistKeyBoth = (sourceObject: FileList, referenceObject: FileList) => {
         const removedItems: FileList = {};
         const remainingItems: FileList = {};
-    
+
         for (const key in sourceObject) {
             if (Object.prototype.hasOwnProperty.call(referenceObject, key)) {
-                remainingItems[key] = sourceObject[key];  // Key exists in both
+                remainingItems[key] = sourceObject[key]; // Key exists in both
             } else {
-                removedItems[key] = sourceObject[key];    // Key only in source
+                removedItems[key] = sourceObject[key]; // Key only in source
             }
         }
-    
-        return [ removedItems, remainingItems ];
+
+        return [removedItems, remainingItems];
     };
 
     filterExclusions = (

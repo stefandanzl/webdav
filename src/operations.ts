@@ -1,8 +1,8 @@
 import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
 import { join, dirname } from "./util";
-import {  normalizePath } from "obsidian";
-import { Controller, FileList,   Status } from "./const";
+import { normalizePath } from "obsidian";
+import { Controller, FileList, Status } from "./const";
 
 const WEBDAV_HEADERS = { "Cache-Control": "no-cache, no-store, must-revalidate" };
 
@@ -329,7 +329,7 @@ export class Operations {
                 this.plugin.settings.exclusions
             );
             this.plugin.log(JSON.stringify(comparedFileTrees, null, 2));
-            this.plugin.fileTrees = comparedFileTrees ;
+            this.plugin.fileTrees = comparedFileTrees;
             // if (this.plugin.modal) {
             //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             // }
@@ -337,6 +337,14 @@ export class Operations {
 
             // show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
             show && this.plugin.show("Finished checking files");
+            if (show) {
+                if (this.plugin.calcTotal(this.plugin.fileTrees.localFiles.except) > 0) {
+                    this.plugin.show(
+                        "Found file sync exceptions! Open Webdav Control Panel and either PUSH/PULL or resolve each case separately!",
+                        5
+                    );
+                }
+            }
             this.plugin.lastScrollPosition = 0;
             this.plugin.modal?.renderFileTrees();
             this.plugin.setStatus(Status.NONE);
@@ -394,6 +402,7 @@ export class Operations {
             }
 
             const total = this.plugin.calcTotal(...operationsToCount.filter(Boolean));
+
             if (total === 0) {
                 show && this.plugin.show("No files to sync");
                 this.plugin.setStatus(Status.NONE);
@@ -513,13 +522,16 @@ export class Operations {
 
             // Execute all operations concurrently
             await Promise.all(operations);
-            this.plugin.setStatus(Status.NONE)
-
-            this.cleanUp();
+            this.plugin.setStatus(Status.NONE);
 
             show && this.plugin.show("Sync completed - checking again");
             await this.plugin.saveState();
+
             await this.check(true);
+
+            // this.plugin.prevData.except = this.plugin.compare.checkExistKey(this.plugin.prevData.except, this.plugin.fileTrees.localFiles.except)
+            this.plugin.tempExcludedFiles = {};
+
             show && this.plugin.show("Done");
             this.plugin.setStatus(Status.NONE);
         } catch (error) {
@@ -534,21 +546,5 @@ export class Operations {
             // }
             this.plugin.finished();
         }
-    }
-
-    cleanUp(){
-        this.plugin.tempExcludedFiles = {}
-      
-        // Object.keys(this.plugin.tempExcludedFiles).forEach((path)=>{
-        //     if (this.plugin.tempExcludedFiles[path].type === "except"){
-        //         // are already gone
-        //         // delete this.plugin.fileTrees.localFiles.except[path] 
-        //         // delete this.plugin.fileTrees.webdavFiles.except[path] 
-
-        //         delete this.plugin.tempExcludedFiles[path]
-        //     } else {
-        //         delete this.plugin.tempExcludedFiles[path]
-        //     }
-        // })
     }
 }
