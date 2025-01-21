@@ -26,7 +26,7 @@ export class Operations {
         });
     }
 
-    async downloadFiles(webdavClient: WebDAVClient, filesMap: FileList, remoteBasePath: string): Promise<void> {
+    async downloadFiles(filesMap: FileList): Promise<void> {
         if (!filesMap || Object.keys(filesMap).length === 0) {
             this.plugin.log("No files to download");
             return;
@@ -36,7 +36,7 @@ export class Operations {
         const results = await Promise.all(
             Object.entries(filesMap).map(async ([filePath, _]) => ({
                 filePath,
-                success: await this.downloadFile(webdavClient, filePath, remoteBasePath),
+                success: await this.downloadFile(filePath),
             }))
         );
 
@@ -44,11 +44,11 @@ export class Operations {
         const failedDownloads = results.filter((r) => !r.success);
         if (failedDownloads.length > 0) {
             console.log(`Retrying ${failedDownloads.length} failed downloads...`);
-            await Promise.all(failedDownloads.map(({ filePath }) => this.downloadFile(webdavClient, filePath, remoteBasePath)));
+            await Promise.all(failedDownloads.map(({ filePath }) => this.downloadFile(filePath)));
         }
     }
 
-    private async downloadFile(webdavClient: WebDAVClient, filePath: string, remoteBasePath: string): Promise<boolean> {
+    private async downloadFile(filePath: string): Promise<boolean> {
         try {
             if (filePath.endsWith("/")) {
                 await this.ensureLocalDirectory(filePath);
@@ -56,10 +56,10 @@ export class Operations {
                 return true;
             }
 
-            const remotePath = join(remoteBasePath, filePath);
+            const remotePath = join(this.plugin.baseWebdav, filePath);
 
             // Verify remote file exists
-            const remoteStats = await webdavClient.exists(remotePath);
+            const remoteStats = await this.plugin.webdavClient.exists(remotePath);
             if (!remoteStats) {
                 console.error(`Remote file not found: ${remotePath}`);
                 return false;
@@ -69,7 +69,7 @@ export class Operations {
             await this.ensureLocalDirectory(dirname(filePath));
 
             // Download with retry
-            const fileData = await this.downloadWithRetry(webdavClient, remotePath);
+            const fileData = await this.downloadWithRetry(remotePath);
             if (fileData.status !== 200) {
                 throw new Error(`Failed to download ${remotePath}: ${fileData.status}`);
             }
@@ -85,7 +85,6 @@ export class Operations {
 
     // Helper methods
     private async downloadWithRetry(
-        webdavClient: WebDAVClient,
         remotePath: string,
         maxRetries = 2
     ): Promise<{
@@ -94,10 +93,7 @@ export class Operations {
     }> {
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
-                // return await webdavClient.getFileContents(remotePath, {
-                //     format: "binary"
-                // });
-                return await webdavClient.get(remotePath);
+                return await this.plugin.webdavClient.get(remotePath);
             } catch (error) {
                 if (attempt === maxRetries) throw error;
                 console.log(`Retry ${attempt} for ${remotePath}`);
@@ -118,7 +114,7 @@ export class Operations {
     /**
      * Upload files to WebDAV server
      */
-    async uploadFiles(webdavClient: WebDAVClient, fileChecksums: FileList, remoteBasePath: string): Promise<void> {
+    async uploadFiles(fileChecksums: FileList): Promise<void> {
         if (!fileChecksums || Object.keys(fileChecksums).length === 0) {
             this.plugin.log("No files to upload");
             return;
@@ -126,7 +122,7 @@ export class Operations {
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         for (const [localFilePath, _] of Object.entries(fileChecksums)) {
-            await this.uploadFile(webdavClient, localFilePath, remoteBasePath);
+            await this.uploadFile(localFilePath);
         }
 
         console.log("Upload completed");
@@ -135,17 +131,17 @@ export class Operations {
     /**
      * Upload a single file to WebDAV
      */
-    private async uploadFile(webdavClient: WebDAVClient, localFilePath: string, remoteBasePath: string): Promise<void> {
+    private async uploadFile(localFilePath: string): Promise<void> {
         try {
             if (localFilePath.endsWith("/")) {
-                await this.ensureRemoteDirectory(webdavClient, localFilePath, remoteBasePath);
+                await this.ensureRemoteDirectory(localFilePath);
                 return;
             }
 
             const fileContent = await this.plugin.app.vault.adapter.readBinary(normalizePath(localFilePath));
-            const remoteFilePath = join(remoteBasePath, localFilePath);
+            const remoteFilePath = join(this.plugin.baseWebdav, localFilePath);
 
-            await webdavClient.put(remoteFilePath, fileContent);
+            await this.plugin.webdavClient.put(remoteFilePath, fileContent);
             this.plugin.processed();
             this.plugin.log(`Uploaded: ${localFilePath} to ${remoteFilePath}`);
         } catch (error) {
@@ -156,7 +152,7 @@ export class Operations {
     /**
      * Delete files from WebDAV server
      */
-    async deleteFilesWebdav(client: WebDAVClient, basePath: string, fileTree: FileList): Promise<void> {
+    async deleteFilesWebdav(fileTree: FileList): Promise<void> {
         if (!fileTree || Object.keys(fileTree).length === 0) {
             this.plugin.log("No files to delete on WebDAV");
             return;
@@ -166,10 +162,10 @@ export class Operations {
 
         const deleteFile = async (path: string): Promise<void> => {
             const cleanPath = path.endsWith("/") ? path.replace(/\/$/, "") : path;
-            const fullPath = join(basePath, cleanPath);
+            const fullPath = join(this.plugin.baseWebdav, cleanPath);
 
             try {
-                const response = await client.delete(fullPath);
+                const response = await this.plugin.webdavClient.delete(fullPath);
                 // console.log(response, typeof response)
                 //
                 if (response !== 204 && response !== 404) {
@@ -186,8 +182,8 @@ export class Operations {
 
         const retryDelete = async (path: string): Promise<void> => {
             try {
-                if (await client.exists(path)) {
-                    const response = await client.delete(path);
+                if (await this.plugin.webdavClient.exists(path)) {
+                    const response = await this.plugin.webdavClient.delete(path);
                     if (response) {
                         this.plugin.processed();
                         console.log(`Retry successful: ${path}`);
@@ -225,10 +221,10 @@ export class Operations {
         }
     }
 
-    private async ensureRemoteDirectory(webdavClient: WebDAVClient, path: string, basePath: string): Promise<void> {
+    private async ensureRemoteDirectory(path: string): Promise<void> {
         try {
             console.log(`Creating remote directory: ${path}`);
-            const response = await webdavClient.createDirectory(join(basePath, path.replace(/\/$/, "")));
+            const response = await this.plugin.webdavClient.createDirectory(join(this.plugin.baseWebdav, path.replace(/\/$/, "")));
             if (!response) {
                 throw new Error(`Failed to create remote directory ${path}`);
             }
@@ -331,6 +327,7 @@ export class Operations {
                 this.plugin.prevData,
                 this.plugin.settings.exclusions
             );
+
             this.plugin.log(JSON.stringify(comparedFileTrees, null, 2));
             this.plugin.fileTrees = comparedFileTrees;
             this.plugin.fullFileTrees = structuredClone(this.plugin.fileTrees);
@@ -417,7 +414,7 @@ export class Operations {
 
             if (total === 0) {
                 if (Object.keys(this.plugin.fileTrees.localFiles.except).length > 0) {
-                    show && this.plugin.show("You have file sync exceptions. Clear them in Webdav Control Panel.",5000);
+                    show && this.plugin.show("You have file sync exceptions. Clear them in Webdav Control Panel.", 5000);
                 } else {
                     show && this.plugin.show("No files to sync");
                 }
@@ -433,106 +430,54 @@ export class Operations {
             // Handle WebDAV operations
             if (controller.webdav) {
                 if (controller.webdav.added === 1) {
-                    operations.push(
-                        this.plugin.operations.downloadFiles(
-                            this.plugin.webdavClient,
-                            this.plugin.fileTrees.webdavFiles.added,
-                            this.plugin.baseWebdav
-                        )
-                    );
+                    operations.push(this.plugin.operations.downloadFiles(this.plugin.fileTrees.webdavFiles.added));
                 } else if (controller.webdav.added === -1) {
-                    operations.push(
-                        this.plugin.operations.deleteFilesWebdav(
-                            this.plugin.webdavClient,
-                            this.plugin.baseWebdav,
-                            this.plugin.fileTrees.webdavFiles.added
-                        )
-                    );
+                    operations.push(this.plugin.operations.deleteFilesWebdav(this.plugin.fileTrees.webdavFiles.added));
                 }
 
                 if (controller.webdav.deleted === 1) {
                     operations.push(this.plugin.operations.deleteFilesLocal(this.plugin.fileTrees.webdavFiles.deleted));
                 } else if (controller.webdav.deleted === -1) {
-                    operations.push(
-                        this.plugin.operations.downloadFiles(
-                            this.plugin.webdavClient,
-                            this.plugin.fileTrees.webdavFiles.deleted,
-                            this.plugin.baseWebdav
-                        )
-                    );
+                    operations.push(this.plugin.operations.uploadFiles(this.plugin.fileTrees.webdavFiles.deleted));
                 }
 
                 if (controller.webdav.modified === 1) {
-                    operations.push(
-                        this.plugin.operations.downloadFiles(
-                            this.plugin.webdavClient,
-                            this.plugin.fileTrees.webdavFiles.modified,
-                            this.plugin.baseWebdav
-                        )
-                    );
+                    operations.push(this.plugin.operations.downloadFiles(this.plugin.fileTrees.webdavFiles.modified));
+                } else if (controller.webdav.modified === -1) {
+                    operations.push(this.plugin.operations.uploadFiles(this.plugin.fileTrees.webdavFiles.modified));
                 }
 
                 if (controller.webdav.except === 1) {
-                    operations.push(
-                        this.plugin.operations.downloadFiles(
-                            this.plugin.webdavClient,
-                            this.plugin.fileTrees.webdavFiles.except,
-                            this.plugin.baseWebdav
-                        )
-                    );
+                    operations.push(this.plugin.operations.downloadFiles(this.plugin.fileTrees.webdavFiles.except));
+                } else if (controller.webdav.except === -1) {
+                    operations.push(this.plugin.operations.uploadFiles(this.plugin.fileTrees.webdavFiles.except));
                 }
             }
 
             // Handle Local operations
             if (controller.local) {
                 if (controller.local.added === 1) {
-                    operations.push(
-                        this.plugin.operations.uploadFiles(
-                            this.plugin.webdavClient,
-                            this.plugin.fileTrees.localFiles.added,
-                            this.plugin.baseWebdav
-                        )
-                    );
+                    operations.push(this.plugin.operations.uploadFiles(this.plugin.fileTrees.localFiles.added));
                 } else if (controller.local.added === -1) {
                     operations.push(this.plugin.operations.deleteFilesLocal(this.plugin.fileTrees.localFiles.added));
                 }
 
                 if (controller.local.deleted === 1) {
-                    operations.push(
-                        this.plugin.operations.deleteFilesWebdav(
-                            this.plugin.webdavClient,
-                            this.plugin.baseWebdav,
-                            this.plugin.fileTrees.localFiles.deleted
-                        )
-                    );
+                    operations.push(this.plugin.operations.deleteFilesWebdav(this.plugin.fileTrees.localFiles.deleted));
                 } else if (controller.local.deleted === -1) {
-                    operations.push(
-                        this.plugin.operations.uploadFiles(
-                            this.plugin.webdavClient,
-                            this.plugin.fileTrees.localFiles.deleted,
-                            this.plugin.baseWebdav
-                        )
-                    );
+                    operations.push(this.plugin.operations.downloadFiles(this.plugin.fileTrees.localFiles.deleted));
                 }
 
                 if (controller.local.modified === 1) {
-                    operations.push(
-                        this.plugin.operations.uploadFiles(
-                            this.plugin.webdavClient,
-                            this.plugin.fileTrees.localFiles.modified,
-                            this.plugin.baseWebdav
-                        )
-                    );
+                    operations.push(this.plugin.operations.uploadFiles(this.plugin.fileTrees.localFiles.modified));
+                } else if (controller.local.modified === -1) {
+                    operations.push(this.plugin.operations.downloadFiles(this.plugin.fileTrees.localFiles.modified));
                 }
 
                 if (controller.local.except === 1) {
-                    operations.push(
-                        this.plugin.operations.uploadFiles(
-                            this.plugin.webdavClient,
-                            this.plugin.fileTrees.localFiles.except,
-                            this.plugin.baseWebdav
-                        )
-                    );
+                    operations.push(this.plugin.operations.uploadFiles(this.plugin.fileTrees.localFiles.except));
+                } else if (controller.local.except === -1) {
+                    operations.push(this.plugin.operations.downloadFiles(this.plugin.fileTrees.localFiles.except));
                 }
             }
 
@@ -563,4 +508,79 @@ export class Operations {
             this.plugin.finished();
         }
     }
+
+    async duplicateLocal() {
+        this.plugin.show("Duplicating local Vault ...");
+        await this.sync({
+            local: {
+                added: 1,
+                deleted: 1,
+                modified: 1,
+                except: 1,
+            },
+            webdav: {
+                added: -1,
+                deleted: -1,
+                modified: -1,
+                // except: -1,
+            },
+        });
+    }
+    async duplicateWebdav() {
+        this.plugin.show("Duplicating Webdav Vault ...");
+        await this.plugin.operations.sync({
+            local: {
+                added: -1,
+                deleted: -1,
+                modified: -1,
+                // except: -1,
+            },
+            webdav: {
+                added: 1,
+                deleted: 1,
+                modified: 1,
+                except: 1,
+            },
+        });
+    }
+
+    async push(){
+        this.sync({
+            local: {
+                added: 1,
+                deleted: 1,
+                modified: 1,
+                except: 1,
+            },
+            webdav: {},
+        });
+    }
+
+    async pull(){
+        this.sync({
+            local: {},
+            webdav: {
+                added: 1,
+                deleted: 1,
+                modified: 1,
+                except: 1,
+            },
+        });
+    }
+
+    async fullSync(){
+        this.sync({
+            local: {
+                added: 1,
+                deleted: 1,
+                modified: 1,
+            },
+            webdav: {
+                added: 1,
+                deleted: 1,
+                modified: 1,
+            },
+        });
+    }
+
 }

@@ -45,11 +45,19 @@ export class FileTreeModal extends Modal {
             text: `CHECK ${Status.CHECK}`,
             cls: ["mod-cta", "webdav-button"],
         });
-        checkButton.addEventListener("click", async () => {
-            // this.plugin.show("Checking files ...")
-            await this.plugin.operations.check();
-            // this.fileTreeDiv.(renderFileTrees(this.plugin.fileTrees))
-            //setText(JSON.stringify(this.plugin.fileTrees, null, 2));
+        checkButton.addEventListener("click", () => {
+            this.plugin.operations.check();
+        });
+
+        /**
+         * TEST Button
+         */
+        const testButton = buttonDiv.createEl("button", {
+            text: `TEST ${Status.TEST}`,
+            cls: ["mod-cta", "webdav-button"],
+        });
+        testButton.addEventListener("click", () => {
+            this.plugin.operations.test();
         });
 
         /**
@@ -61,18 +69,7 @@ export class FileTreeModal extends Modal {
         });
         syncButton.addEventListener("click", async () => {
             // this.plugin.show("Synchronizing files with server ...")
-            await this.plugin.operations.sync({
-                local: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                },
-                webdav: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                },
-            });
+            this.plugin.operations.fullSync();
         });
 
         /**
@@ -151,15 +148,7 @@ export class FileTreeModal extends Modal {
                 cls: ["mod-cta", "webdav-button"],
             });
             pullButton.addEventListener("click", async () => {
-                await this.plugin.operations.sync({
-                    local: {},
-                    webdav: {
-                        added: 1,
-                        deleted: 1,
-                        modified: 1,
-                        except: 1,
-                    },
-                });
+                this.plugin.operations.pull();
             });
 
             /**
@@ -171,55 +160,23 @@ export class FileTreeModal extends Modal {
             });
             pushButton.addEventListener("click", async () => {
                 // this.plugin.show("Pushing files to server ...")
-                await this.plugin.operations.sync({
-                    local: {
-                        added: 1,
-                        deleted: 1,
-                        modified: 1,
-                        except: 1,
-                    },
-                    webdav: {},
-                });
+                this.plugin.operations.push();
             });
 
-            /**
-             * Inverted PULL Button
-             */
-            const pullInvertButton = buttonDiv.createEl("button", {
-                text: "!PULL",
-                cls: ["mod-cta", "webdav-button"],
+            const dupLocalBtn = buttonDiv.createEl("button", {
+                text: `DUPLICATE LOCAL ${Status.PUSH}`,
+                cls: ["mod-cta", "webdav-button", "button-danger"],
             });
-            pullInvertButton.addEventListener("click", async () => {
-                this.plugin.show("Inverted Pulling files from server ...");
-                await this.plugin.operations.sync({
-                    local: {},
-                    webdav: {
-                        added: -1,
-                        deleted: -1,
-                        modified: -1,
-                        except: -1,
-                    },
-                });
+            dupLocalBtn.addEventListener("click", async () => {
+                await this.plugin.operations.duplicateLocal();
             });
 
-            /**
-             * Inverted PUSH Button
-             */
-            const pushInvertButton = buttonDiv.createEl("button", {
-                text: "!PUSH",
-                cls: ["mod-cta", "webdav-button"],
+            const dupWebBtn = buttonDiv.createEl("button", {
+                text: `DUPLICATE WEBDAV ${Status.PULL}`,
+                cls: ["mod-cta", "webdav-button", "button-danger"],
             });
-            pushInvertButton.addEventListener("click", async () => {
-                this.plugin.show("Inverted Pushing files to server ...");
-                await this.plugin.operations.sync({
-                    local: {
-                        added: -1,
-                        deleted: -1,
-                        modified: -1,
-                        except: -1,
-                    },
-                    webdav: {},
-                });
+            dupWebBtn.addEventListener("click", async () => {
+                await this.plugin.operations.duplicateWebdav();
             });
         });
 
@@ -302,8 +259,8 @@ export class FileTreeModal extends Modal {
                             plugin.modal.sectionRenderObject[parents.location + parents.type].isEnabled = true;
                             plugin.modal.sectionRenderObject[parents.location + parents.type].element.removeClass("file-user-disabled");
 
-                            Object.entries(plugin.tempExcludedFiles).forEach(([pa, {location, type, hash}]) => {
-                                if (location === parents.location && type === parents.type){
+                            Object.entries(plugin.tempExcludedFiles).forEach(([pa, { location, type, hash }]) => {
+                                if (location === parents.location && type === parents.type) {
                                     delete plugin.tempExcludedFiles[pa];
                                     plugin.fileTrees[parents?.location as keyof FileTrees][parents?.type as keyof FileTree][pa] = hash;
                                     plugin.modal.pathRenderObject[pa]?.removeClass("file-user-disabled");

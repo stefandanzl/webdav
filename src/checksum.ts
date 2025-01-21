@@ -48,20 +48,19 @@ export class Checksum {
     isExcluded(filePath: string) {
         const { extensions, directories, markers }: Exclusions = this.plugin.settings.exclusions;
 
-        const directoriesMod = [...directories]; // necessary because otherwise original array will be manipulated!
+        if (this.plugin.settings.exclusionsOverride) {
+            return false;
+        }
+        const directoriesMod = structuredClone(directories); // necessary because otherwise original array will be manipulated!
 
         if (this.plugin.mobile) {
             if (this.plugin.settings.skipHiddenMobile) {
-                directoriesMod.push(this.plugin.app.vault.configDir+"/");
+                directoriesMod.push(this.plugin.app.vault.configDir + "/");
             }
         } else {
             if (this.plugin.settings.skipHiddenDesktop) {
-                directoriesMod.push(this.plugin.app.vault.configDir+"/");
+                directoriesMod.push(this.plugin.app.vault.configDir + "/");
             }
-        }
-
-        if (this.plugin.settings.exclusionsOverride) {
-            return false;
         }
 
         const folders = filePath.split("/");
@@ -71,11 +70,17 @@ export class Checksum {
         if (folders.some((folder) => directoriesMod.includes(folder))) {
             return true;
         }
-
-        // Check file extensions
-        const extension = extname(filePath).toLowerCase();
-        if (extensions.includes(extension)) {
+        if (folders.some((folder)=>{
+            filePath.endsWith(folder+"/")
             return true;
+        }))
+
+        if (extensions.length > 0) {
+            // Check file extensions
+            const extension = extname(filePath).toLowerCase();
+            if (extensions.includes(extension)) {
+                return true;
+            }
         }
 
         // Check markers

@@ -2,16 +2,16 @@ export const PLUGIN_ID = "webdav";
 
 export enum Status {
     NONE = "✔️",
-    CHECK = "🔎",
-    PULL = "⬇️",
-    PUSH = "⬆️",
-    SYNC = "⏳",
-    ERROR = "❌",
-    AUTO = "🔄",
     TEST = "🧪",
+    CHECK = "🔎",
+    SYNC = "⏳",
+    AUTO = "🔄",
     SAVE = "💾",
-    PAUSE = "⏸️",
     OFFLINE = "📴",
+    ERROR = "❌",
+    PULL = "🔻",
+    PUSH = "🔺",
+    PAUSE = "⏸️",
 }
 
 export interface StatusItem {
@@ -35,42 +35,7 @@ export const STATUS_ITEMS: Record<Status, StatusItem> = {
         class: "status-check",
         lucide: "search",
         label: "Checking files ...",
-        color: "#0000FF", // Blue
-    },
-    [Status.PULL]: {
-        emoji: "⬇️",
-        class: "status-pull",
-        lucide: "arrow-down-to-line",
-        label: "Downloading files ...",
-        color: "#FFA500", // Orange
-    },
-    [Status.PUSH]: {
-        emoji: "⬆️",
-        class: "status-push",
-        lucide: "arrow-up-from-line",
-        label: "Uploading files ...",
-        color: "#FFA500", // Orange
-    },
-    [Status.SYNC]: {
-        emoji: "⏳",
-        class: "status-sync",
-        lucide: "refresh-ccw",
-        label: "Synchronising files ...",
-        color: "var(--interactive-accent)",
-    },
-    [Status.ERROR]: {
-        emoji: "❌",
-        class: "status-error",
-        lucide: "refresh-cw-off",
-        label: "Error! Please check Console in DevTools!",
-        color: "#FF0000", // Red
-    },
-    [Status.AUTO]: {
-        emoji: "🔄",
-        class: "status-auto",
-        lucide: "refresh-ccw-dot",
-        label: "Performing automated Sync ...",
-        color: "var(--interactive-accent)",
+        color: "var(--interactive-accent)", // Blue
     },
     [Status.TEST]: {
         emoji: "🧪",
@@ -86,12 +51,19 @@ export const STATUS_ITEMS: Record<Status, StatusItem> = {
         label: "Saving current file state to disk ...",
         color: "",
     },
-    [Status.PAUSE]: {
-        emoji: "⏸️",
-        class: "status-pause",
-        lucide: "pause",
-        label: "User enabled Pause - Disable in Control Panel",
-        color: "",
+    [Status.SYNC]: {
+        emoji: "⏳",
+        class: "status-sync",
+        lucide: "refresh-ccw",
+        label: "Synchronising files ...",
+        color: "var(--interactive-accent)",
+    },
+    [Status.AUTO]: {
+        emoji: "🔄",
+        class: "status-auto",
+        lucide: "refresh-ccw-dot",
+        label: "Performing automated Sync ...",
+        color: "var(--interactive-accent)",
     },
     [Status.OFFLINE]: {
         emoji: "📴",
@@ -99,6 +71,34 @@ export const STATUS_ITEMS: Record<Status, StatusItem> = {
         lucide: "wifi-off",
         label: "Offline! Can't connect to server!",
         color: "#FF0000", // Red
+    },
+    [Status.ERROR]: {
+        emoji: "❌",
+        class: "status-error",
+        lucide: "refresh-cw-off",
+        label: "Error! Please check Console in DevTools!",
+        color: "#FF0000", // Red
+    },
+    [Status.PULL]: {
+        emoji: "🔻",
+        class: "status-pull",
+        lucide: "arrow-down-to-line",
+        label: "Downloading files ...",
+        color: "#FFA500", // Orange
+    },
+    [Status.PUSH]: {
+        emoji: "🔺",
+        class: "status-push",
+        lucide: "arrow-up-from-line",
+        label: "Uploading files ...",
+        color: "#FFA500", // Orange
+    },
+    [Status.PAUSE]: {
+        emoji: "⏸️",
+        class: "status-pause",
+        lucide: "pause",
+        label: "User enabled Pause - Disable in Control Panel",
+        color: "",
     },
 };
 
@@ -187,7 +187,7 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     webdavPath: "",
     overrideVault: "",
     exclusions: {
-        directories: ["node_modules", ".git", "webdav"],
+        directories: ["webdav"],
         extensions: [".exe"],
         markers: ["prevdata.json", ".obsidian/workspace.json"],
     },

@@ -7,7 +7,7 @@
  
  .webdav-container {
     display: flex;
-    flex-direction: row;
+    flex-direction: row-reverse;
     gap: 40px;
     margin: 5px;
     min-height: 330px;
@@ -105,4 +105,8 @@
 
 .file-user-download {
     color: blue;
+}
+
+.button-danger {
+   background-color: orange !important;
 }

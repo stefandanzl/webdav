@@ -1,7 +1,6 @@
 import { App, PluginSettingTab, Setting } from "obsidian";
 import Cloudr from "./main";
 
-
 export class CloudrSettingsTab extends PluginSettingTab {
     plugin: Cloudr;
 
@@ -87,6 +86,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                         await this.plugin.setBaseWebdav();
                         this.plugin.operations.test();
+                        await this.plugin.saveSettings();
                     })
             );
 
@@ -102,6 +102,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                         await this.plugin.setBaseWebdav();
                         // this.plugin.test()
+                        await this.plugin.saveSettings();
                     })
             );
 
@@ -114,9 +115,9 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.exclusions.directories.join("\n"))
                     .onChange(async (value) => {
                         value = value.replace(/\r/g, "").replace(/\\/g, "/");
-                        this.plugin.settings.exclusions.directories = value.split("\n");
-                        this.plugin.log(JSON.stringify(this.plugin.settings.exclusions));
+                        this.plugin.settings.exclusions.directories = value.split("\n").filter((v) => v !== "");
                         await this.plugin.saveSettings();
+                        console.log("Settings saved:", this.plugin.settings.exclusions);
                     })
             );
 
@@ -129,9 +130,9 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.exclusions.extensions.join(", "))
                     .onChange(async (value) => {
                         value = value.replace(/ /g, "");
-                        this.plugin.settings.exclusions.extensions = value.split(",");
-
+                        this.plugin.settings.exclusions.extensions = value.split(",").filter((v) => v !== "");
                         await this.plugin.saveSettings();
+                        console.log("Settings saved:", this.plugin.settings.exclusions);
                     })
             );
 
@@ -144,8 +145,9 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     .setValue(this.plugin.settings.exclusions.markers.join("\n"))
                     .onChange(async (value) => {
                         value = value.replace(/\r/g, "").replace(/\\/g, "/");
-                        this.plugin.settings.exclusions.markers = value.split("\n");
+                        this.plugin.settings.exclusions.markers = value.split("\n").filter((v) => v !== "");
                         await this.plugin.saveSettings();
+                        console.log("Settings saved:", this.plugin.settings.exclusions);
                     })
             );
 
@@ -212,7 +214,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
             .addToggle((toggle) =>
                 toggle.setValue(this.plugin.settings.exclusionsOverride).onChange(async (value) => {
                     this.plugin.settings.exclusionsOverride = value;
-                    // await this.plugin.saveSettings();  DON'T SAVE THAT
+                    await this.plugin.saveSettings();
                 })
             );
 

@@ -34,43 +34,16 @@ export async function launcher(plugin: Cloudr) {
 
     if (plugin.settings.enableRibbons) {
         plugin.addRibbonIcon("upload-cloud", "PUSH to Webdav", () => {
-            plugin.operations.sync({
-                local: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                    except: 1,
-                },
-                webdav: {},
-            });
+            plugin.operations.push();
         });
 
         plugin.addRibbonIcon("download-cloud", "PULL from Webdav", () => {
-            plugin.operations.sync({
-                local: {},
-                webdav: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                    except: 1,
-                },
-            });
+            plugin.operations.pull();
         });
     }
 
     plugin.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
-        plugin.operations.sync({
-            local: {
-                added: 1,
-                deleted: 1,
-                modified: 1,
-            },
-            webdav: {
-                added: 1,
-                deleted: 1,
-                modified: 1,
-            },
-        });
+        plugin.operations.fullSync();
     });
 
     plugin.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
@@ -132,42 +105,26 @@ export async function launcher(plugin: Cloudr) {
     });
 
     plugin.addCommand({
-        id: "display-modal",
-        name: "Display modal",
+        id: "display-webdav-modal",
+        name: "Open Webdav Control Panel modal",
         callback: async () => {
             plugin.displayModal();
         },
     });
 
     plugin.addCommand({
-        id: "push",
+        id: "webdav-push",
         name: "Force PUSH all File changes",
         callback: async () => {
-            plugin.operations.sync({
-                local: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                    except: 1,
-                },
-                webdav: {},
-            });
+            plugin.operations.push()
         },
     });
 
     plugin.addCommand({
-        id: "pull",
+        id: "webdav-pull",
         name: "Force PULL all File changes",
         callback: async () => {
-            plugin.operations.sync({
-                local: {},
-                webdav: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                    except: 1,
-                },
-            });
+            plugin.operations.pull()
         },
     });
 
@@ -175,18 +132,7 @@ export async function launcher(plugin: Cloudr) {
         id: "webdav-fullsync",
         name: "Full Sync",
         callback: async () => {
-            plugin.operations.sync({
-                local: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                },
-                webdav: {
-                    added: 1,
-                    deleted: 1,
-                    modified: 1,
-                },
-            });
+            plugin.operations.fullSync()
         },
     });
 
@@ -208,23 +154,7 @@ export async function launcher(plugin: Cloudr) {
     });
 
     plugin.addCommand({
-        id: "delete-local",
-        name: "Delete pending local files",
-        callback: () => {
-            plugin.operations.deleteFilesLocal(plugin.fileTrees.webdavFiles.deleted);
-        },
-    });
-
-    plugin.addCommand({
-        id: "delete-webdav",
-        name: "Delete pending webdav files",
-        callback: () => {
-            plugin.operations.deleteFilesWebdav(plugin.webdavClient, plugin.baseWebdav, plugin.fileTrees.localFiles.deleted);
-        },
-    });
-
-    plugin.addCommand({
-        id: "toggle-pause-all",
+        id: "toggle-pause",
         name: "Toggle Pause for all activities",
         callback: () => {
             plugin.togglePause();

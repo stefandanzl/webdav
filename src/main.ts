@@ -350,8 +350,8 @@ export default class Cloudr extends Plugin {
 
     async initRemote() {
         //
-        await this.operations.deleteFilesWebdav(this.webdavClient, this.baseWebdav, this.webdavFiles);
-        await this.operations.uploadFiles(this.webdavClient, this.localFiles, this.baseWebdav);
+        await this.operations.deleteFilesWebdav(this.webdavFiles);
+        await this.operations.uploadFiles(this.localFiles);
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

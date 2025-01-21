@@ -37,3 +37,6 @@ tasks:
   minify:
     cmds:
       - terser main.js -o main.min.js
+  time:
+    cmds:
+      - date +%T
