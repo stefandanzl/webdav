@@ -257,6 +257,11 @@ export class Operations {
         // show && this.setStatus(Status.TEST);
         // show && this.show(`${Status.TEST} Testing ...`);
 
+        // if (this.plugin.status === Status.ERROR){
+        //     this.plugin.show("Clear your ERROR first! ")
+        //     return
+        // }
+
         try {
             const existBool = await this.plugin.webdavClient.exists(this.plugin.settings.webdavPath);
             this.plugin.log("EXISTS: ", existBool);
@@ -264,7 +269,11 @@ export class Operations {
             if (existBool) {
                 show && this.plugin.show("Connection successful");
                 show && this.plugin.setStatus(Status.NONE);
-                // this.plugin.setStatus(Status.NONE);
+
+                if (this.plugin.prevData.error){
+                    this.plugin.show("Clear your ERROR state manually!");
+                    this.plugin.setStatus(Status.ERROR);
+                }
                 return true;
             }
             show && this.plugin.show("Connection failed");
@@ -321,15 +330,9 @@ export class Operations {
             this.plugin.allFiles.local = localFiles;
             this.plugin.allFiles.webdav = webdavFiles;
 
-            const comparedFileTrees = await this.plugin.compare.compareFileTrees(
-                webdavFiles,
-                localFiles,
-                this.plugin.prevData,
-                this.plugin.settings.exclusions
-            );
+            this.plugin.fileTrees = await this.plugin.compare.compareFileTrees(webdavFiles, localFiles);
+            const ok = this.dangerCheck();
 
-            this.plugin.log(JSON.stringify(comparedFileTrees, null, 2));
-            this.plugin.fileTrees = comparedFileTrees;
             this.plugin.fullFileTrees = structuredClone(this.plugin.fileTrees);
             // if (this.plugin.modal) {
             //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
@@ -337,8 +340,8 @@ export class Operations {
             this.plugin.checkTime = Date.now();
 
             // show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
-            show && this.plugin.show("Finished checking files");
-            if (show) {
+            (show && ok) && this.plugin.show("Finished checking files");
+            if (show && ok) {
                 if (this.plugin.calcTotal(this.plugin.fileTrees.localFiles.except) > 0) {
                     this.plugin.show(
                         "Found file sync exceptions! Open Webdav Control Panel and either PUSH/PULL or resolve each case separately!",
@@ -349,7 +352,7 @@ export class Operations {
             this.plugin.lastScrollPosition = 0;
             this.plugin.tempExcludedFiles = {};
             this.plugin.modal?.renderFileTrees();
-            this.plugin.setStatus(Status.NONE);
+            ok && this.plugin.setStatus(Status.NONE);
             return true;
         } catch (error) {
             console.error("CHECK ERROR: ", error);
@@ -544,7 +547,7 @@ export class Operations {
         });
     }
 
-    async push(){
+    async push() {
         this.sync({
             local: {
                 added: 1,
@@ -556,7 +559,7 @@ export class Operations {
         });
     }
 
-    async pull(){
+    async pull() {
         this.sync({
             local: {},
             webdav: {
@@ -568,7 +571,7 @@ export class Operations {
         });
     }
 
-    async fullSync(){
+    async fullSync() {
         this.sync({
             local: {
                 added: 1,
@@ -583,4 +586,23 @@ export class Operations {
         });
     }
 
+    dangerCheck() {
+        const max = 15;
+        let counter = 0;
+        delete this.plugin.fileTrees.localFiles.deleted[".obsidian/"];
+
+        Object.keys(this.plugin.fileTrees.localFiles.deleted).forEach((v) => {
+            if (v.startsWith(".obsidian")) {
+                counter++;
+            }
+        });
+        if (counter > max) {
+            this.plugin.errorWrite();
+            this.plugin.show(`WARNING! DANGEROUS AMOUNT OF SYSTEM FILES HAVE PENDING DELETION (${counter})`, 5000);
+            this.plugin.setStatus(Status.ERROR)
+            return false
+        }
+
+        return true;
+    }
 }

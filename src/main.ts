@@ -400,9 +400,9 @@ export default class Cloudr extends Plugin {
      * @param duration - Time in milliseconds
      */
     show(message: string, duration?: number) {
-        if (this.notice) {
-            this.notice.hide();
-        }
+        // if (this.notice) {
+        //     this.notice.hide();
+        // }
 
         const fragment = document.createDocumentFragment();
         const divElement = document.createElement("div");

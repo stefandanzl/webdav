@@ -1,6 +1,6 @@
 import Cloudr from "./main";
 import { extname } from "./util";
-import { FileTree, FileList, PreviousObject, Exclusions, FileTrees } from "./const";
+import { FileTree, FileList, FileTrees } from "./const";
 
 export class Compare {
     constructor(public plugin: Cloudr) {
@@ -129,17 +129,9 @@ export class Compare {
         return [removedItems, remainingItems];
     };
 
-    filterExclusions = (
-        fileTree: FileList,
-        exclusions: {
-            extensions?: string[];
-            directories?: string[];
-            markers?: string[];
-        }
-    ) => {
-        const { extensions = [], directories = [], markers = [] }: Exclusions = this.plugin.settings.exclusions;
+    filterExclusions = (fileTree: FileList) => {
         let filtered: FileList = {};
-        const directoriesMod = [...directories]; // necessary because otherwise original array will be manipulated!
+        const directoriesMod = structuredClone(this.plugin.settings.exclusions.directories); // necessary because otherwise original array will be manipulated!
 
         if (this.plugin.mobile) {
             if (this.plugin.settings.skipHiddenMobile) {
@@ -152,8 +144,7 @@ export class Compare {
         }
 
         if (this.plugin.settings.exclusionsOverride) {
-            filtered = { ...fileTree };
-            // return false
+            filtered = structuredClone(fileTree);
         } else {
             for (const filePath in fileTree) {
                 const folders = filePath.split("/");
@@ -166,12 +157,12 @@ export class Compare {
 
                 // Check file extensions
                 const extension = extname(filePath).toLowerCase();
-                if (extensions.includes(extension)) {
+                if (this.plugin.settings.exclusions.extensions.includes(extension)) {
                     continue;
                 }
 
                 // Check markers
-                if (markers.some((marker) => filePath.includes(marker))) {
+                if (this.plugin.settings.exclusions.markers.some((marker) => filePath.includes(marker))) {
                     continue;
                 }
 
@@ -181,16 +172,7 @@ export class Compare {
         return filtered;
     };
 
-    compareFileTrees = async (
-        webdavFiles: FileList,
-        localFiles: FileList,
-        prevFileTree: PreviousObject,
-        exclusions: {
-            extensions?: string[];
-            directories?: string[];
-            markers?: string[];
-        }
-    ): Promise<FileTrees> => {
+    compareFileTrees = async (webdavFiles: FileList, localFiles: FileList): Promise<FileTrees> => {
         // Initialize default file trees structure
         const fileTreeMatch: FileTrees = {
             webdavFiles: { added: {}, deleted: {}, modified: {}, except: {} },
@@ -198,7 +180,7 @@ export class Compare {
         };
 
         // Case 1: No previous file tree or no webdav files
-        if (!prevFileTree.files || Object.keys(prevFileTree.files).length === 0 || Object.keys(webdavFiles).length === 0) {
+        if (!this.plugin.prevData.files || Object.keys(this.plugin.prevData.files).length === 0 || Object.keys(webdavFiles).length === 0) {
             if (Object.keys(webdavFiles).length === 0) {
                 // Only local files exist
                 fileTreeMatch.localFiles.added = localFiles;
@@ -220,16 +202,16 @@ export class Compare {
 
         // Case 2: Compare with previous state
         try {
-            const filteredPrevTree = this.filterExclusions(prevFileTree.files, exclusions);
-            const filteredExcepts = this.filterExclusions(prevFileTree.except, exclusions);
+            const filteredPrevTree = this.filterExclusions(this.plugin.prevData.files);
+            const filteredExcepts = this.filterExclusions(this.plugin.prevData.except);
 
             const [webdavFilesBranch, localFilesBranch] = await Promise.all([
                 this.comparePreviousFileTree(filteredPrevTree, filteredExcepts, webdavFiles),
                 this.comparePreviousFileTree(filteredPrevTree, filteredExcepts, localFiles),
             ]);
 
-            webdavFilesBranch.except = { ...prevFileTree.except, ...webdavFilesBranch.except };
-            localFilesBranch.except = { ...prevFileTree.except, ...localFilesBranch.except };
+            webdavFilesBranch.except = { ...this.plugin.prevData.except, ...webdavFilesBranch.except };
+            localFilesBranch.except = { ...this.plugin.prevData.except, ...localFilesBranch.except };
 
             const { webdavMatch, localMatch } = this.compareFileTreesExcept(webdavFilesBranch, localFilesBranch);
 
