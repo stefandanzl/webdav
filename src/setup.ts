@@ -109,6 +109,14 @@ export async function launcher(plugin: Cloudr) {
     });
 
     plugin.addCommand({
+        id: "daily-note",
+        name: "Create Daily Note with Webdav",
+        callback: async () => {
+            plugin.dailyNote.dailyNote();
+        },
+    });
+
+    plugin.addCommand({
         id: "display-webdav-modal",
         name: "Open Webdav Control Panel modal",
         callback: async () => {

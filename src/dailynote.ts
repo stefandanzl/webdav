@@ -1,6 +1,7 @@
 import { TFile, moment, normalizePath } from "obsidian";
 import Cloudr from "./main";
 import { createFolderIfNotExists } from "./util";
+import { Status } from "./const";
 
 export class DailyNoteManager {
     constructor(private plugin: Cloudr) {
@@ -97,6 +98,10 @@ export class DailyNoteManager {
      * Main function to create/sync daily note
      */
     async dailyNote(middleCick = false) {
+        if (this.plugin.status !== Status.NONE) {
+            this.plugin.show("Cant use Daily Notes feature: Status must be " + Status.NONE);
+            return;
+        }
         try {
             // Consider moving these to plugin settings
             // const folder = "Daily Notes";
