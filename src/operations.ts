@@ -1,9 +1,8 @@
 import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
-import { join, dirname, createFolderIfNotExists } from "./util";
-import { normalizePath, TFile } from "obsidian";
+import { join, dirname } from "./util";
+import { normalizePath } from "obsidian";
 import { Controller, FileList, Status } from "./const";
-import * as moment from "moment";
 
 const WEBDAV_HEADERS = { "Cache-Control": "no-cache, no-store, must-revalidate" };
 
@@ -12,105 +11,6 @@ export class Operations {
         this.plugin = plugin;
     }
 
-    async getDailyNote(filePath: string, remoteContent: string): Promise<TFile> {
-        // const format = "";
-
-        const template = "";
-        let finalContent = "";
-
-        // Check if the file already exists
-        const existingFile = this.plugin.app.vault.getAbstractFileByPath(filePath);
-        if (existingFile instanceof TFile) {
-            const localContent = await this.plugin.app.vault.read(existingFile);
-
-            if (remoteContent.length > localContent.length) {
-                finalContent = remoteContent;
-            } else {
-                finalContent = localContent;
-                return existingFile;
-            }
-        } else {
-            finalContent = remoteContent;
-        }
-
-        // Create the new daily note
-        try {
-            let initialContent = "";
-
-            if (finalContent.length > 0) {
-                initialContent = finalContent;
-            } else {
-                // If template is specified and exists, use it
-                if (template) {
-                    const templateFile = this.plugin.app.vault.getAbstractFileByPath(template);
-                    if (templateFile instanceof TFile) {
-                        initialContent = await this.plugin.app.vault.read(templateFile);
-
-                        // // Replace template date variables
-                        // initialContent = initialContent.replace(/{{date}}/gi, momentDate.format(format));
-                        // initialContent = initialContent.replace(/{{time}}/gi, momentDate.format("HH:mm"));
-                    }
-                }
-            }
-            const newFile = await this.plugin.app.vault.create(filePath, initialContent);
-            return newFile;
-        } catch (err) {
-            console.error(`Failed to create daily note at '${filePath}':`, err);
-            throw err;
-        }
-    }
-    getDailyNotePath(folder: string, format: string) {
-        const momentDate: moment.Moment = moment();
-
-        // Format the date according to user's format setting
-        const formattedDate = momentDate.format(format);
-
-        // Create the full path for the note
-        const folderPath = normalizePath(folder);
-        const filePath = normalizePath(`${folderPath}/${formattedDate}.md`);
-        return {
-            filePath,
-            folderPath,
-        };
-    }
-
-    async getDailyNoteRemotely(dailyNotePath: string): Promise<string> {
-        try {
-            if (await this.plugin.webdavClient.exists(dailyNotePath)) {
-                //
-                const response = await this.plugin.webdavClient.get(dailyNotePath);
-                if (response.status === 200) {
-                    return new TextDecoder().decode(response.data);
-                }
-            }
-            return "";
-        } catch (error) {
-            console.log("Error fetching daily note remotely");
-            return "";
-        }
-    }
-    /**
-     * Create Daily note with webdav plugin
-     * Try to fetch daily note from server or create it
-     */
-    async dailyNote() {
-        try {
-            const folder = "Daily Notes";
-            const format = "YYYY/YYYY-MM/YYYY-MM-DD ddd";
-
-            const { filePath, folderPath } = this.getDailyNotePath(folder, format);
-
-            const remoteContent = await this.getDailyNoteRemotely(filePath);
-            console.log(remoteContent);
-            await createFolderIfNotExists(this.plugin.app.vault, folderPath);
-
-            const dailyNote = await this.getDailyNote(filePath, remoteContent);
-            await this.plugin.app.workspace.getLeaf(false).openFile(dailyNote);
-        } catch (err) {
-            console.error("Failed to create/open daily note:", err);
-            // Handle error appropriately
-        }
-    }
     /**
      * Configure and create WebDAV client
      */

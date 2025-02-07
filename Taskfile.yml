@@ -2,7 +2,7 @@
 
 version: '3'
 
-vars:
+# vars:
   #DIR_PLUGIN: C:\PROJECTS\Obsidian\dev7\.obsidian\plugins\webdav
 
   #USER_WORKING_DIR: C:\PROJECTS\Obsidian\dev7

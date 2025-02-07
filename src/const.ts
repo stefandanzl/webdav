@@ -199,6 +199,10 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     enableRibbons: true,
     skipHiddenMobile: false,
     skipHiddenDesktop: false,
+
+    dailyNotesFolder: "",
+    dailyNotesFormat: "",
+    dailyNotesTemplate: "",
 };
 
 export interface CloudrSettings {
@@ -221,6 +225,10 @@ export interface CloudrSettings {
     enableRibbons: boolean;
     skipHiddenDesktop: boolean;
     skipHiddenMobile: boolean;
+
+    dailyNotesFolder: string;
+    dailyNotesFormat: string;
+    dailyNotesTemplate: string;
 }
 
 export interface Exclusions {

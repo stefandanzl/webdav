@@ -33,13 +33,12 @@ export class CloudrSettingsTab extends PluginSettingTab {
             .setDesc("Enter your Server's Username")
             .addText((text) =>
                 text
-                    .setPlaceholder("admin")
+                    .setPlaceholder("username")
                     .setValue(this.plugin.settings.username)
                     .onChange(async (value) => {
                         this.plugin.settings.username = value;
                         this.plugin.setClient();
                         await this.plugin.saveSettings();
-                        // this.plugin.setClient()
                     })
             );
 
@@ -236,6 +235,45 @@ export class CloudrSettingsTab extends PluginSettingTab {
                     this.plugin.settings.skipHiddenDesktop = value;
                     await this.plugin.saveSettings();
                 })
+            );
+
+        new Setting(containerEl)
+            .setName("Webdav Daily Notes Folder")
+            .setDesc("")
+            .addText((text) =>
+                text
+                    .setPlaceholder("Daily Notes")
+                    .setValue(this.plugin.settings.dailyNotesFolder)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dailyNotesFolder = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
+            .setName("Webdav Daily Notes File Naming Template")
+            .setDesc("Enter in moment syntax")
+            .addText((text) =>
+                text
+                    .setPlaceholder("YYYY/YYYY-MM/YYYY-MM-DD ddd")
+                    .setValue(this.plugin.settings.dailyNotesFormat)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dailyNotesFormat = value;
+                        await this.plugin.saveSettings();
+                    })
+            );
+
+        new Setting(containerEl)
+            .setName("Webdav Daily Notes Template File")
+            .setDesc("Enter path of file you want to be used as template when creating new Daily Note.")
+            .addText((text) =>
+                text
+                    .setPlaceholder("Vault/Templates/Daily Notes")
+                    .setValue(this.plugin.settings.dailyNotesTemplate)
+                    .onChange(async (value) => {
+                        this.plugin.settings.dailyNotesTemplate = value;
+                        await this.plugin.saveSettings();
+                    })
             );
     }
 }

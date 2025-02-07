@@ -8,6 +8,7 @@ import { Operations } from "./operations";
 import { join, sha1 } from "./util";
 import { launcher } from "./setup";
 import { FileList, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS, STATUS_ITEMS, FileTrees, Hash, Location, Type } from "./const";
+import { DailyNoteManager } from "./dailynote";
 
 export default class Cloudr extends Plugin {
     doLog: boolean;
@@ -15,6 +16,7 @@ export default class Cloudr extends Plugin {
     compare: Compare;
     checksum: Checksum;
     operations: Operations;
+    dailyNote: DailyNoteManager;
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     settingPrivate: any;
@@ -266,53 +268,50 @@ export default class Cloudr extends Plugin {
 
                 Object.keys(this.tempExcludedFiles).forEach((path) => {
                     // we have to differentiate between added, deleted and edited.
-                    if (this.tempExcludedFiles[path].location === "localFiles"){
-                    switch (this.tempExcludedFiles[path].type) {
-                        case "added":
-                            // Do not write to prevData
+                    if (this.tempExcludedFiles[path].location === "localFiles") {
+                        switch (this.tempExcludedFiles[path].type) {
+                            case "added":
+                                // Do not write to prevData
 
-                            break;
-                    case "deleted":
-                            // Write to prevData
-                            files[path] = this.tempExcludedFiles[path].hash;
-                        break;
-                    case "modified":
-                        // Write old hash again to prevData
-                        files[path] = this.prevData.files[path];
-                        break;
-                        default:
+                                break;
+                            case "deleted":
+                                // Write to prevData
+                                files[path] = this.tempExcludedFiles[path].hash;
+                                break;
+                            case "modified":
+                                // Write old hash again to prevData
+                                files[path] = this.prevData.files[path];
+                                break;
+                            default:
+                                break;
+                        }
+                    } else if (this.tempExcludedFiles[path].location === "webdavFiles") {
+                        switch (this.tempExcludedFiles[path].type) {
+                            case "added":
+                                // Do not write to prevData
 
-                            break;
+                                break;
+                            case "deleted":
+                                // Write to prevData
+                                // files[path] = this.tempExcludedFiles[path].hash;
+                                break;
+                            case "modified":
+                                // Write old hash again to prevData
+                                // files[path] = this.prevData.files[path];
+                                break;
+                            default:
+                                break;
+                        }
+                    } else {
+                        // except
+                        // will already not be treated by sync
+                        // TODO: add additional click handler for except area
                     }
-                } else if (this.tempExcludedFiles[path].location === "webdavFiles"){
-                    switch (this.tempExcludedFiles[path].type) {
-                        case "added":
-                            // Do not write to prevData
 
-                            break;
-                    case "deleted":
-                            // Write to prevData
-                            // files[path] = this.tempExcludedFiles[path].hash;
-                        break;
-                    case "modified":
-                        // Write old hash again to prevData
-                        // files[path] = this.prevData.files[path];
-                        break;
-                        default:
-
-                            break;
-                    }
-                } else {
-                    // except
-                    // will already not be treated by sync
-                    // TODO: add additional click handler for except area
-                }
-
-
-                    files[path as keyof FileList] = this.prevData.files[path as keyof PreviousObject] ;
+                    files[path as keyof FileList] = this.prevData.files[path as keyof PreviousObject];
                 });
-  
-                const newExcept = this.compare.checkExistKey(this.fileTrees.localFiles.except, files)
+
+                const newExcept = this.compare.checkExistKey(this.fileTrees.localFiles.except, files);
 
                 this.prevData = {
                     date: Date.now(),
@@ -395,7 +394,7 @@ export default class Cloudr extends Plugin {
     }
 
     /**
-     * 
+     *
      * @param message - What is on your Toast?
      * @param duration - Time in milliseconds
      */

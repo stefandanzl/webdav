@@ -5,6 +5,7 @@ import { Checksum } from "./checksum";
 import { Operations } from "./operations";
 import { Platform, setIcon } from "obsidian";
 import { Status } from "./const";
+import { DailyNoteManager } from "./dailynote";
 
 export async function launcher(plugin: Cloudr) {
     await plugin.loadSettings();
@@ -20,6 +21,7 @@ export async function launcher(plugin: Cloudr) {
     plugin.compare = new Compare(plugin);
     plugin.checksum = new Checksum(plugin);
     plugin.operations = new Operations(plugin);
+    plugin.dailyNote = new DailyNoteManager(plugin);
 
     plugin.mobile = Platform.isMobileApp;
     plugin.settings.exclusionsOverride = false;
@@ -33,8 +35,8 @@ export async function launcher(plugin: Cloudr) {
     };
 
     if (plugin.settings.enableRibbons) {
-        plugin.addRibbonIcon("daily-note", "Open Daily Note with Webdav", () => {
-            plugin.operations.dailyNote();
+        plugin.addRibbonIcon("calendar", "Open Daily Note with Webdav", () => {
+            plugin.dailyNote.dailyNote();
         });
 
         plugin.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
