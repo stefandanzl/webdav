@@ -1,6 +1,5 @@
 import { FileTree } from "./const";
-
-
+import { Vault } from "obsidian";
 
 export const join = (...args: string[]) => {
     const separator = "/"; // Change this to '\\' for backslash on Windows
@@ -9,8 +8,8 @@ export const join = (...args: string[]) => {
 
 /**
  * Returns true if obj is empty
- * @param obj 
- * @returns 
+ * @param obj
+ * @returns
  */
 export const emptyObj = (obj: unknown) => {
     if (typeof obj === "object" && obj !== null) {
@@ -90,5 +89,16 @@ export function fileTreesEmpty({ localFiles, webdavFiles }: { localFiles: FileTr
     return true;
 }
 
+// Helper function to create nested folders
+export async function createFolderIfNotExists(vault: Vault, folderPath: string): Promise<void> {
+    const folders = folderPath.split("/").filter((folder) => folder.length);
+    let currentPath = "";
 
-
+    for (const folder of folders) {
+        currentPath += folder;
+        if (!(await vault.adapter.exists(currentPath))) {
+            await vault.createFolder(currentPath);
+        }
+        currentPath += "/";
+    }
+}

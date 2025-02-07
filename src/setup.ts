@@ -33,22 +33,18 @@ export async function launcher(plugin: Cloudr) {
     };
 
     if (plugin.settings.enableRibbons) {
-        plugin.addRibbonIcon("upload-cloud", "PUSH to Webdav", () => {
-            plugin.operations.push();
+        plugin.addRibbonIcon("daily-note", "Open Daily Note with Webdav", () => {
+            plugin.operations.dailyNote();
         });
 
-        plugin.addRibbonIcon("download-cloud", "PULL from Webdav", () => {
-            plugin.operations.pull();
+        plugin.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
+            plugin.operations.fullSync();
+        });
+
+        plugin.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
+            plugin.displayModal();
         });
     }
-
-    plugin.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
-        plugin.operations.fullSync();
-    });
-
-    plugin.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
-        plugin.displayModal();
-    });
 
     try {
         plugin.prevData = JSON.parse(await plugin.app.vault.adapter.read(plugin.prevPath));
@@ -116,7 +112,7 @@ export async function launcher(plugin: Cloudr) {
         id: "webdav-push",
         name: "Force PUSH all File changes",
         callback: async () => {
-            plugin.operations.push()
+            plugin.operations.push();
         },
     });
 
@@ -124,7 +120,7 @@ export async function launcher(plugin: Cloudr) {
         id: "webdav-pull",
         name: "Force PULL all File changes",
         callback: async () => {
-            plugin.operations.pull()
+            plugin.operations.pull();
         },
     });
 
@@ -132,7 +128,7 @@ export async function launcher(plugin: Cloudr) {
         id: "webdav-fullsync",
         name: "Full Sync",
         callback: async () => {
-            plugin.operations.fullSync()
+            plugin.operations.fullSync();
         },
     });
 
