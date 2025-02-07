@@ -35,8 +35,14 @@ export async function launcher(plugin: Cloudr) {
     };
 
     if (plugin.settings.enableRibbons) {
-        plugin.addRibbonIcon("calendar", "Open Daily Note with Webdav", () => {
-            plugin.dailyNote.dailyNote();
+        plugin.addRibbonIcon("calendar", "Open Daily Note with Webdav", (event: MouseEvent) => {
+            let middleCick = false;
+            if (event.button === 1) {
+                event.preventDefault();
+                middleCick = true;
+            }
+
+            plugin.dailyNote.dailyNote(middleCick);
         });
 
         plugin.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {

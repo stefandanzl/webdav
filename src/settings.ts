@@ -268,7 +268,7 @@ export class CloudrSettingsTab extends PluginSettingTab {
             .setDesc("Enter path of file you want to be used as template when creating new Daily Note.")
             .addText((text) =>
                 text
-                    .setPlaceholder("Vault/Templates/Daily Notes")
+                    .setPlaceholder("Templates/Daily Notes")
                     .setValue(this.plugin.settings.dailyNotesTemplate)
                     .onChange(async (value) => {
                         this.plugin.settings.dailyNotesTemplate = value;

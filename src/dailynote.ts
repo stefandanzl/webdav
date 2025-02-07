@@ -20,6 +20,7 @@ export class DailyNoteManager {
 
             // Use remote content if it's longer, otherwise keep local
             if (remoteContent && remoteContent.length > localContent.length) {
+                this.plugin.show("Modified Daily Note from the one on Webdav");
                 finalContent = remoteContent;
                 // Update existing file instead of creating new one
                 await this.plugin.app.vault.modify(existingFile, finalContent);
@@ -33,8 +34,11 @@ export class DailyNoteManager {
         finalContent = remoteContent || (await this.getTemplateContent());
 
         try {
+            this.plugin.show("Created Daily Note from the one on Webdav");
             return await this.plugin.app.vault.create(filePath, finalContent);
         } catch (err) {
+            this.plugin.show("Daily Note File Error: ", err);
+
             console.error(`Failed to create daily note at '${filePath}':`, err);
             throw new Error(`Failed to create daily note: ${err.message}`);
         }
@@ -92,13 +96,13 @@ export class DailyNoteManager {
     /**
      * Main function to create/sync daily note
      */
-    async dailyNote() {
+    async dailyNote(middleCick = false) {
         try {
             // Consider moving these to plugin settings
             // const folder = "Daily Notes";
             // const format = "YYYY/YYYY-MM/YYYY-MM-DD ddd";
             const folder = this.plugin.settings.dailyNotesFolder;
-            const format = this.plugin.settings.dailyNotesFolder;
+            const format = this.plugin.settings.dailyNotesFormat;
 
             const { filePath, folderPath } = this.getDailyNotePath(folder, format);
 
@@ -111,7 +115,7 @@ export class DailyNoteManager {
             const dailyNote = await this.getDailyNote(filePath, remoteContent);
 
             // Open the note
-            await this.plugin.app.workspace.getLeaf(false).openFile(dailyNote);
+            await this.plugin.app.workspace.getLeaf(middleCick).openFile(dailyNote);
         } catch (err) {
             console.error("Failed to create/open daily note:", err);
             throw new Error(`Daily note operation failed: ${err.message}`);

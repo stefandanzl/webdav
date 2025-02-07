@@ -200,8 +200,8 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     skipHiddenMobile: false,
     skipHiddenDesktop: false,
 
-    dailyNotesFolder: "",
-    dailyNotesFormat: "",
+    dailyNotesFolder: "Daily Notes",
+    dailyNotesFormat: "YYYY/YYYY-MM/YYYY-MM-DD ddd",
     dailyNotesTemplate: "",
 };
 
