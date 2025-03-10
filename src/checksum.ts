@@ -1,6 +1,6 @@
 import { WebDAVClient } from "./webdav";
 import Cloudr from "./main";
-import { extname, sha1 } from "./util";
+import { extname, sha256 } from "./util";
 import { TAbstractFile, TFile, TFolder, normalizePath } from "obsidian";
 import { FileList, WebDAVDirectoryItem, Exclusions } from "./const";
 
@@ -70,18 +70,19 @@ export class Checksum {
         if (folders.some((folder) => directoriesMod.includes(folder))) {
             return true;
         }
-        if (folders.some((folder)=>{
-            filePath.endsWith(folder+"/")
-            return true;
-        }))
-
-        if (extensions.length > 0) {
-            // Check file extensions
-            const extension = extname(filePath).toLowerCase();
-            if (extensions.includes(extension)) {
+        if (
+            folders.some((folder) => {
+                filePath.endsWith(folder + "/");
                 return true;
+            })
+        )
+            if (extensions.length > 0) {
+                // Check file extensions
+                const extension = extname(filePath).toLowerCase();
+                if (extensions.includes(extension)) {
+                    return true;
+                }
             }
-        }
 
         // Check markers
         if (markers.some((marker) => filePath.includes(marker))) {
@@ -127,7 +128,7 @@ export class Checksum {
                 }
 
                 const data = await this.plugin.app.vault.adapter.readBinary(file);
-                this.localFiles[file] = await sha1(data);
+                this.localFiles[file] = await sha256(data);
             } catch (error) {
                 console.error(`Error processing file ${file}:`, error);
             }
@@ -169,6 +170,11 @@ export class Checksum {
 
         const localTFiles: TAbstractFile[] = this.plugin.app.vault.getAllLoadedFiles();
 
+        //@ts-ignore little trick
+        const fileCache = this.plugin.app.metadataCache.fileCache;
+
+        console.log(fileCache);
+
         await Promise.all(
             localTFiles.map(async (element) => {
                 // const filePath = element.path
@@ -179,8 +185,16 @@ export class Checksum {
                         if (exclude && this.isExcluded(filePath)) {
                             return;
                         }
-                        const content = await this.plugin.app.vault.readBinary(element);
-                        this.localFiles[filePath] = await sha1(content);
+                        if (fileCache) {
+                            try {
+                                this.localFiles[filePath] = fileCache[filePath].hash;
+                            } catch (error) {
+                                console.error("fileCache Error", element, error);
+                            }
+                        } else {
+                            const content = await this.plugin.app.vault.readBinary(element);
+                            this.localFiles[filePath] = await sha256(content);
+                        }
                     } else if (element instanceof TFolder) {
                         const filePath = element.path + "/";
                         if ((exclude && this.isExcluded(filePath)) || filePath === "//") {

@@ -2,10 +2,13 @@
 
 version: '3'
 
-# vars:
-  #DIR_PLUGIN: C:\PROJECTS\Obsidian\dev7\.obsidian\plugins\webdav
+vars:
+  VAULT: dev7
 
-  #USER_WORKING_DIR: C:\PROJECTS\Obsidian\dev7
+  DIR_PLUGIN: C:\PROJECTS\Obsidian\{{.VAULT}}\.obsidian\plugins\webdav
+
+  # USER_WORKING_DIR: C:\PROJECTS\Obsidian\{{.VAULT}}
+
 dotenv: ['.env']
 
 tasks:

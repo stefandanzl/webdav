@@ -5,7 +5,7 @@ import { FileTreeModal } from "./modal";
 import { Checksum } from "./checksum";
 import { Compare } from "./compare";
 import { Operations } from "./operations";
-import { join, sha1 } from "./util";
+import { join, sha256 } from "./util";
 import { launcher } from "./setup";
 import { FileList, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS, STATUS_ITEMS, FileTrees, Hash, Location, Type } from "./const";
 import { DailyNoteManager } from "./dailynote";
@@ -188,7 +188,7 @@ export default class Cloudr extends Plugin {
 
                     this.log(filePath);
                     const data = await this.app.vault.readBinary(file);
-                    const hash = await sha1(data);
+                    const hash = await sha256(data);
 
                     const remoteFilePath = join(this.baseWebdav, filePath);
                     const response = await this.webdavClient.put(remoteFilePath, data);
