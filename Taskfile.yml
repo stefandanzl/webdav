@@ -1,15 +1,15 @@
 # https://taskfile.dev
 
-version: '3'
+version: "3"
 
 vars:
-  VAULT: dev7
+  VAULT: hirn
 
   DIR_PLUGIN: C:\PROJECTS\Obsidian\{{.VAULT}}\.obsidian\plugins\webdav
 
   # USER_WORKING_DIR: C:\PROJECTS\Obsidian\{{.VAULT}}
 
-dotenv: ['.env']
+dotenv: [".env"]
 
 tasks:
   default:
