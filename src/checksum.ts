@@ -185,7 +185,7 @@ export class Checksum {
                         if (exclude && this.isExcluded(filePath)) {
                             return;
                         }
-                        if (fileCache) {
+                        if (fileCache && filePath.endsWith(".md")) {
                             try {
                                 this.localFiles[filePath] = fileCache[filePath].hash;
                             } catch (error) {
