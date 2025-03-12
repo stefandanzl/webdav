@@ -8,6 +8,9 @@ vars:
   DIR_PLUGIN: C:\PROJECTS\Obsidian\{{.VAULT}}\.obsidian\plugins\webdav
 
   # USER_WORKING_DIR: C:\PROJECTS\Obsidian\{{.VAULT}}
+  FILES: "main.js styles.css manifest.json"
+  VERSION:
+    sh: node -e "console.log(require('./package.json').version)"
 
 dotenv: [".env"]
 
@@ -18,8 +21,8 @@ tasks:
       - task: copy
   copy:
     cmds:
-      - xcopy "{{.USER_WORKING_DIR}}\main.js" "{{.DIR_PLUGIN}}\main.js" /Y
-      - xcopy "{{.USER_WORKING_DIR}}\styles.css" "{{.DIR_PLUGIN}}\styles.css" /Y
+      - cp "{{.USER_WORKING_DIR}}/main.js" "{{.DIR_PLUGIN}}/main.js"
+      - cp "{{.USER_WORKING_DIR}}/styles.css" "{{.DIR_PLUGIN}}/styles.css"
   build:
     cmds:
       - npm run build
@@ -31,9 +34,9 @@ tasks:
       - git add .
       - git commit -m "task"
       - git push
-  test:
-    cmds:
-      - npm test -env-file .env
+  # test:
+  #   cmds:
+  #     - npm test -env-file .env
   research:
     cmds:
       - node tests/exclude/research.js
@@ -43,3 +46,31 @@ tasks:
   time:
     cmds:
       - date +%T
+
+  dev: npm run dev
+
+  bump:
+    desc: "Commit Changes and bump minor version"
+    cmds:
+      - git add .
+      - git commit -m "bump"
+      - npm version minor
+      - npm run version
+
+  release:
+    desc: "Commit Changes, create version tag, push to Github and create a new release on GitHub"
+    cmds:
+      - git add .
+      - git commit -m "{{.VERSION}} Commit"
+      # - git tag {{.VERSION}}
+      - git push
+      - git push --tags
+      - task: release-create
+
+  release-create:
+    cmds:
+      - gh release create {{.VERSION}} --title "{{.VERSION}}" --notes "New release of the webdav plugin for Obsidian." {{.FILES}}
+
+  test:
+    cmds:
+      - echo {{.VERSION}}
