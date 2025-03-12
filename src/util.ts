@@ -102,3 +102,9 @@ export async function createFolderIfNotExists(vault: Vault, folderPath: string):
         currentPath += "/";
     }
 }
+
+export function calcDuration(time: number) {
+    const now = Date.now();
+    const duration = now - time;
+    return duration / 1000;
+}

@@ -1,6 +1,6 @@
 import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
-import { join, dirname } from "./util";
+import { join, dirname, calcDuration } from "./util";
 import { normalizePath } from "obsidian";
 import { Controller, FileList, Status } from "./const";
 
@@ -337,10 +337,9 @@ export class Operations {
             // if (this.plugin.modal) {
             //     this.plugin.modal.fileTreeDiv.setText(JSON.stringify(this.plugin.fileTrees, null, 2));
             // }
-            this.plugin.checkTime = Date.now();
 
             // show && (fileTreesEmpty(this.plugin.fileTrees) ? null : this.plugin.show("Finished checking files"));
-            show && ok && this.plugin.show("Finished checking files");
+            show && ok && this.plugin.show(`Finished checking files after ${calcDuration(this.plugin.checkTime)} s`);
             if (show && ok) {
                 if (this.plugin.calcTotal(this.plugin.fileTrees.localFiles.except) > 0) {
                     this.plugin.show(
