@@ -62,7 +62,8 @@ tasks:
         desc: "Commit Changes, create version tag, push to Github and create a new release on GitHub"
         cmds:
             - git add .
-            - git commit -m "{{.VERSION}} Commit"
+            - cmd: git commit -m "{{.VERSION}} Commit"
+              ignore_error: true
             # - git tag {{.VERSION}}
             - git push
             - git push --tags
