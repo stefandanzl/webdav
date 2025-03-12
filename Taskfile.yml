@@ -3,74 +3,75 @@
 version: "3"
 
 vars:
-  VAULT: hirn
+    VAULT: hirn
 
-  DIR_PLUGIN: C:\PROJECTS\Obsidian\{{.VAULT}}\.obsidian\plugins\webdav
+    DIR_PLUGIN: C:\PROJECTS\Obsidian\{{.VAULT}}\.obsidian\plugins\webdav
 
-  # USER_WORKING_DIR: C:\PROJECTS\Obsidian\{{.VAULT}}
-  FILES: "main.js styles.css manifest.json"
-  VERSION:
-    sh: node -e "console.log(require('./package.json').version)"
+    # USER_WORKING_DIR: C:\PROJECTS\Obsidian\{{.VAULT}}
+    FILES: "main.js styles.css manifest.json"
+    VERSION:
+        sh: node -e "console.log(require('./package.json').version)"
 
 dotenv: [".env"]
 
 tasks:
-  default:
-    cmds:
-      - task: build
-      - task: copy
-  copy:
-    cmds:
-      - cp "{{.USER_WORKING_DIR}}/main.js" "{{.DIR_PLUGIN}}/main.js"
-      - cp "{{.USER_WORKING_DIR}}/styles.css" "{{.DIR_PLUGIN}}/styles.css"
-  build:
-    cmds:
-      - npm run build
-  patch:
-    cmds:
-      - npm version patch
-  git:
-    cmds:
-      - git add .
-      - git commit -m "task"
-      - git push
-  # test:
-  #   cmds:
-  #     - npm test -env-file .env
-  research:
-    cmds:
-      - node tests/exclude/research.js
-  minify:
-    cmds:
-      - terser main.js -o main.min.js
-  time:
-    cmds:
-      - date +%T
+    default:
+        cmds:
+            - task: build
+            - task: copy
+    copy:
+        cmds:
+            - cp "{{.USER_WORKING_DIR}}/main.js" "{{.DIR_PLUGIN}}/main.js"
+            - cp "{{.USER_WORKING_DIR}}/styles.css" "{{.DIR_PLUGIN}}/styles.css"
+    build:
+        cmds:
+            - npm run build
+    patch:
+        cmds:
+            - npm version patch
+    git:
+        cmds:
+            - git add .
+            - git commit -m "task"
+            - git push
+    # test:
+    #   cmds:
+    #     - npm test -env-file .env
+    research:
+        cmds:
+            - node tests/exclude/research.js
+    minify:
+        cmds:
+            - terser main.js -o main.min.js
+    time:
+        cmds:
+            - date +%T
 
-  dev: npm run dev
+    dev: npm run dev
 
-  bump:
-    desc: "Commit Changes and bump minor version"
-    cmds:
-      - git add .
-      - git commit -m "bump"
-      - npm version minor
-      - npm run version
+    bump:
+        desc: "Commit Changes and bump minor version"
+        cmds:
+            - git add .
+            - cmd: git commit -m "bump"
+              ignore_error: true
+            - npm version minor
+            - npm run version
 
-  release:
-    desc: "Commit Changes, create version tag, push to Github and create a new release on GitHub"
-    cmds:
-      - git add .
-      - git commit -m "{{.VERSION}} Commit"
-      # - git tag {{.VERSION}}
-      - git push
-      - git push --tags
-      - task: release-create
+    release:
+        desc: "Commit Changes, create version tag, push to Github and create a new release on GitHub"
+        cmds:
+            - git add .
+            - git commit -m "{{.VERSION}} Commit"
+            # - git tag {{.VERSION}}
+            - git push
+            - git push --tags
+            - task: release-create
 
-  release-create:
-    cmds:
-      - gh release create {{.VERSION}} --title "{{.VERSION}}" --notes "New release of the webdav plugin for Obsidian." {{.FILES}}
+    release-create:
+        cmds:
+            - gh release create {{.VERSION}} --title "{{.VERSION}}" --notes "New release of the webdav plugin for Obsidian." {{.FILES}}
 
-  test:
-    cmds:
-      - echo {{.VERSION}}
+    test:
+        cmds:
+            - echo {{.VERSION}}
