@@ -126,6 +126,15 @@ export async function launcher(plugin: Cloudr) {
     },
   });
 
+  plugin.addCommand({
+    id: "webdav-check",
+    name: "Check for file changes",
+    icon: "search",
+    callback: async () => {
+      plugin.operations.check();
+    },
+  });
+
   /*
     plugin.addCommand({
         id: "webdav-push",
