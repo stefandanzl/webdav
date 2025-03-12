@@ -121,6 +121,27 @@ export class DailyNoteManager {
 
             // Open the note
             await this.plugin.app.workspace.getLeaf(middleCick).openFile(dailyNote);
+            // Get the active editor
+            const editor = this.plugin.app.workspace.activeEditor?.editor;
+
+            if (editor && this.plugin.settings.dailyNotesTimestamp) {
+                // Get the last line index
+                // const lastLine = editor.lineCount() - 1;
+                let lastLine = editor.lastLine();
+
+                // Get the content of the last line
+                const lastLineContent = editor.getLine(lastLine);
+
+                // Append the timestamp to the existing content
+                editor.setLine(lastLine, lastLineContent + `\n\n${moment().format("HH:mm")} - `);
+
+                lastLine = editor.lastLine();
+
+                const lastLineLength = editor.getLine(lastLine).length;
+
+                // Set the cursor to the end of the last line
+                editor.setCursor({ line: lastLine, ch: lastLineLength });
+            }
         } catch (err) {
             console.error("Failed to create/open daily note:", err);
             throw new Error(`Daily note operation failed: ${err.message}`);

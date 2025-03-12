@@ -203,6 +203,7 @@ export const DEFAULT_SETTINGS: Partial<CloudrSettings> = {
     dailyNotesFolder: "Daily Notes",
     dailyNotesFormat: "YYYY/YYYY-MM/YYYY-MM-DD ddd",
     dailyNotesTemplate: "",
+    dailyNotesTimestamp: true,
 };
 
 export interface CloudrSettings {
@@ -229,6 +230,7 @@ export interface CloudrSettings {
     dailyNotesFolder: string;
     dailyNotesFormat: string;
     dailyNotesTemplate: string;
+    dailyNotesTimestamp: boolean;
 }
 
 export interface Exclusions {

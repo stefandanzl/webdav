@@ -275,5 +275,15 @@ export class CloudrSettingsTab extends PluginSettingTab {
                         await this.plugin.saveSettings();
                     })
             );
+
+        new Setting(containerEl)
+            .setName("Daily Note add Timestamp")
+            .setDesc("Move cursor to the end of Daily Note and insert timestamp in the form of 'HH:MM - '")
+            .addToggle((toggle) =>
+                toggle.setValue(this.plugin.settings.dailyNotesTimestamp).onChange(async (value) => {
+                    this.plugin.settings.dailyNotesTimestamp = value;
+                    await this.plugin.saveSettings();
+                })
+            );
     }
 }
