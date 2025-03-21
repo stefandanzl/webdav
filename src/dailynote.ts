@@ -4,8 +4,11 @@ import { createFolderIfNotExists } from "./util";
 import { Status } from "./const";
 
 export class DailyNoteManager {
+    private ignoreConnection: boolean;
+
     constructor(private plugin: Cloudr) {
         this.plugin = plugin;
+        this.ignoreConnection = false;
     }
 
     /**
@@ -98,11 +101,19 @@ export class DailyNoteManager {
      * Main function to create/sync daily note
      */
     async dailyNote(middleCick = false) {
-        if (this.plugin.status !== Status.NONE) {
+        if (!this.ignoreConnection && this.plugin.status !== Status.NONE) {
             this.plugin.show("Cant use Daily Notes feature: Status must be " + Status.NONE);
             return;
         }
         try {
+            // Check internet connection
+            if (!this.ignoreConnection && !(await this.plugin.operations.test(false))) {
+                this.plugin.show("No internet connection. Click Daily Notes again to force new note without connecting to server.");
+                this.ignoreConnection = true;
+                return;
+            }
+            this.ignoreConnection = false;
+
             // Consider moving these to plugin settings
             // const folder = "Daily Notes";
             // const format = "YYYY/YYYY-MM/YYYY-MM-DD ddd";
