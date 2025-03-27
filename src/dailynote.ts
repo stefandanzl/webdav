@@ -14,16 +14,17 @@ export class DailyNoteManager {
     /**
      * Creates or updates a daily note, comparing local and remote content
      */
-    async getDailyNote(filePath: string, remoteContent: string): Promise<TFile> {
+    async getDailyNote(filePath: string, remoteContent: string | undefined): Promise<TFile> {
         let finalContent = "";
 
         // Check if file exists locally
         const existingFile = this.plugin.app.vault.getAbstractFileByPath(filePath);
         if (existingFile instanceof TFile) {
-            const localContent = await this.plugin.app.vault.read(existingFile);
+            // const localContent = await this.plugin.app.vault.read(existingFile);
 
             // Use remote content if it's longer, otherwise keep local
-            if (remoteContent && remoteContent.length > localContent.length) {
+            // if (remoteContent && remoteContent.length > localContent.length) {
+            if (remoteContent !== undefined) {
                 this.plugin.show("Modified Daily Note from the one on Webdav");
                 finalContent = remoteContent;
                 // Update existing file instead of creating new one
@@ -35,10 +36,21 @@ export class DailyNoteManager {
         }
 
         // If file doesn't exist, use remote content or template
-        finalContent = remoteContent || (await this.getTemplateContent());
+        // finalContent = remoteContent || (await this.getTemplateContent());
 
         try {
-            this.plugin.show("Created Daily Note from the one on Webdav");
+            if (remoteContent) {
+                finalContent = remoteContent;
+                this.plugin.show("Created Daily Note from remote content");
+            } else {
+                const templateContent = await this.getTemplateContent();
+                if (templateContent === undefined) {
+                    throw new Error("Template File Error");
+                }
+                finalContent = templateContent;
+                this.plugin.show("Created new Daily Note with template");
+            }
+
             return await this.plugin.app.vault.create(filePath, finalContent);
         } catch (err) {
             this.plugin.show("Daily Note File Error: ", err);
@@ -51,15 +63,19 @@ export class DailyNoteManager {
     /**
      * Gets template content if specified
      */
-    private async getTemplateContent(): Promise<string> {
+    private async getTemplateContent(): Promise<string | undefined> {
         const templatePath = this.plugin.settings.dailyNotesFolder;
-        if (!templatePath) return "";
+        if (!templatePath) {
+            this.plugin.show("Error: No template path for Daily Notes provided!");
+            return undefined;
+        }
 
         const templateFile = this.plugin.app.vault.getAbstractFileByPath(templatePath);
         if (templateFile instanceof TFile) {
             return await this.plugin.app.vault.read(templateFile);
         }
-        return "";
+        this.plugin.show("Error with template file!");
+        return undefined;
     }
 
     /**
@@ -79,7 +95,7 @@ export class DailyNoteManager {
     /**
      * Fetches daily note content from WebDAV server
      */
-    async getDailyNoteRemotely(dailyNotePath: string): Promise<string> {
+    async getDailyNoteRemotely(dailyNotePath: string): Promise<string | undefined> {
         if (await this.plugin.webdavClient.exists(normalizePath(this.plugin.baseWebdav + "/" + dailyNotePath))) {
             const response = await this.plugin.webdavClient.get(normalizePath(this.plugin.baseWebdav + "/" + dailyNotePath));
             if (response.status === 200 && response.data) {
@@ -90,7 +106,7 @@ export class DailyNoteManager {
         } else {
             console.log("Daily Note: File doesnt exist remotely!");
         }
-        return "";
+        return undefined;
     }
 
     testSettings() {
@@ -107,11 +123,42 @@ export class DailyNoteManager {
         }
         try {
             // Check internet connection
-            if (!this.ignoreConnection && !(await this.plugin.operations.test(false))) {
-                this.plugin.show("No internet connection. Click Daily Notes again to force new note without connecting to server.");
-                this.ignoreConnection = true;
-                return;
+            // const existBool = await this.plugin.webdavClient.exists(this.plugin.settings.webdavPath);
+
+            // Connection check with retries
+            if (!this.ignoreConnection) {
+                const maxRetries = 3;
+                const timeout = 500; // 500ms timeout
+                let retryCount = 0;
+                let connected: boolean | unknown = false;
+
+                while (retryCount <= maxRetries && !connected) {
+                    try {
+                        // Try to test connection with timeout
+                        connected = await Promise.race([
+                            this.plugin.webdavClient.exists(this.plugin.settings.webdavPath),
+                            new Promise((_, reject) => setTimeout(() => reject(new Error("Connection timeout")), timeout)),
+                        ]);
+
+                        if (connected) break;
+                    } catch (error) {
+                        console.log(`Connection attempt ${retryCount + 1} failed: ${error.message}`);
+                    }
+
+                    retryCount++;
+
+                    // If not the last retry, wait before trying again
+                    if (retryCount <= maxRetries && !connected) {
+                        await new Promise((resolve) => setTimeout(resolve, timeout));
+                    }
+                }
+                if (!connected) {
+                    this.plugin.show("No internet connection. Click Daily Notes again to force new note without connecting to server.");
+                    this.ignoreConnection = true;
+                    return;
+                }
             }
+
             this.ignoreConnection = false;
 
             // Consider moving these to plugin settings
@@ -124,6 +171,9 @@ export class DailyNoteManager {
 
             // Ensure folder exists before proceeding
             await createFolderIfNotExists(this.plugin.app.vault, folderPath);
+
+            // let remoteContent: string | undefined = undefined;
+            // if (!this.ignoreConnection) {
             // Get remote content first
             const remoteContent = await this.getDailyNoteRemotely(filePath);
 
