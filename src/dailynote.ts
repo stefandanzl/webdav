@@ -20,10 +20,13 @@ export class DailyNoteManager {
         // Check if file exists locally
         const existingFile = this.plugin.app.vault.getAbstractFileByPath(filePath);
         if (existingFile instanceof TFile) {
-            // const localContent = await this.plugin.app.vault.read(existingFile);
+            const localContent = await this.plugin.app.vault.read(existingFile);
 
             // Use remote content if it's longer, otherwise keep local
             // if (remoteContent && remoteContent.length > localContent.length) {
+            if (localContent === remoteContent) {
+                return existingFile;
+            }
             if (remoteContent !== undefined) {
                 this.plugin.show("Modified Daily Note from the one on Webdav");
                 finalContent = remoteContent;
