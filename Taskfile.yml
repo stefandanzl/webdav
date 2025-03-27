@@ -21,8 +21,10 @@ tasks:
             - task: copy
     copy:
         cmds:
-            - cp "{{.USER_WORKING_DIR}}/main.js" "{{.DIR_PLUGIN}}/main.js"
-            - cp "{{.USER_WORKING_DIR}}/styles.css" "{{.DIR_PLUGIN}}/styles.css"
+            - cp main.js "{{.DIR_PLUGIN}}/main.js"
+            - cp styles.css "{{.DIR_PLUGIN}}/styles.css"
+            - cp manifest.json "{{.DIR_PLUGIN}}/manifest.json"
+
     build:
         cmds:
             - npm run build
