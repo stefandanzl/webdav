@@ -67,13 +67,15 @@ export class DailyNoteManager {
      * Gets template content if specified
      */
     private async getTemplateContent(): Promise<string | undefined> {
-        const templatePath = this.plugin.settings.dailyNotesFolder;
+        // const templatePath = this.plugin.settings.dailyNotesFolder;
+        const templatePath = this.plugin.settings.dailyNotesTemplate;
         if (!templatePath) {
             this.plugin.show("Error: No template path for Daily Notes provided!");
             return undefined;
         }
 
         const templateFile = this.plugin.app.vault.getAbstractFileByPath(templatePath);
+        console.log(templateFile);
         if (templateFile instanceof TFile) {
             return await this.plugin.app.vault.read(templateFile);
         }
