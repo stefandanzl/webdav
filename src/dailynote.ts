@@ -14,8 +14,9 @@ export class DailyNoteManager {
     /**
      * Creates or updates a daily note, comparing local and remote content
      */
-    async getDailyNote(filePath: string, remoteContent: string | undefined): Promise<TFile> {
+    async getDailyNote(filePath: string, remoteContent: string | undefined): Promise<[file: TFile, usedTemplate?: boolean]> {
         let finalContent = "";
+        let usedTemplate = false;
 
         // Check if file exists locally
         const existingFile = this.plugin.app.vault.getAbstractFileByPath(filePath);
@@ -25,16 +26,16 @@ export class DailyNoteManager {
             // Use remote content if it's longer, otherwise keep local
             // if (remoteContent && remoteContent.length > localContent.length) {
             if (localContent === remoteContent) {
-                return existingFile;
+                return [existingFile];
             }
             if (remoteContent !== undefined) {
                 this.plugin.show("Modified Daily Note from the one on Webdav");
                 finalContent = remoteContent;
                 // Update existing file instead of creating new one
                 await this.plugin.app.vault.modify(existingFile, finalContent);
-                return existingFile;
+                return [existingFile];
             } else {
-                return existingFile;
+                return [existingFile];
             }
         }
 
@@ -44,17 +45,18 @@ export class DailyNoteManager {
         try {
             if (remoteContent) {
                 finalContent = remoteContent;
-                this.plugin.show("Created Daily Note from remote content");
+                this.plugin.show("Fetching Daily Note from remote content");
             } else {
                 const templateContent = await this.getTemplateContent();
                 if (templateContent === undefined) {
                     throw new Error("Template File Error");
                 }
                 finalContent = templateContent;
-                this.plugin.show("Created new Daily Note with template");
+                usedTemplate = true;
+                this.plugin.show("Creating new Daily Note with template");
             }
-
-            return await this.plugin.app.vault.create(filePath, finalContent);
+            const file = await this.plugin.app.vault.create(filePath, finalContent);
+            return [file, usedTemplate];
         } catch (err) {
             this.plugin.show("Daily Note File Error: ", err);
 
@@ -68,10 +70,14 @@ export class DailyNoteManager {
      */
     private async getTemplateContent(): Promise<string | undefined> {
         // const templatePath = this.plugin.settings.dailyNotesFolder;
-        const templatePath = this.plugin.settings.dailyNotesTemplate;
+        let templatePath = this.plugin.settings.dailyNotesTemplate;
         if (!templatePath) {
             this.plugin.show("Error: No template path for Daily Notes provided!");
             return undefined;
+        }
+
+        if (!templatePath.endsWith(".md")) {
+            templatePath = templatePath + ".md";
         }
 
         const templateFile = this.plugin.app.vault.getAbstractFileByPath(templatePath);
@@ -183,14 +189,14 @@ export class DailyNoteManager {
             const remoteContent = await this.getDailyNoteRemotely(filePath);
 
             // Create or update the note
-            const dailyNote = await this.getDailyNote(filePath, remoteContent);
+            const [dailyNote, usedTemplate] = await this.getDailyNote(filePath, remoteContent);
 
             // Open the note
             await this.plugin.app.workspace.getLeaf(middleCick).openFile(dailyNote);
             // Get the active editor
             const editor = this.plugin.app.workspace.activeEditor?.editor;
 
-            if (editor && this.plugin.settings.dailyNotesTimestamp) {
+            if (editor && this.plugin.settings.dailyNotesTimestamp && usedTemplate !== true) {
                 // Get the last line index
                 // const lastLine = editor.lineCount() - 1;
                 let lastLine = editor.lastLine();
