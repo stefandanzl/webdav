@@ -585,6 +585,24 @@ export class Operations {
         });
     }
 
+    async fullSyncSilent() {
+        this.sync(
+            {
+                local: {
+                    added: 1,
+                    deleted: 1,
+                    modified: 1,
+                },
+                webdav: {
+                    added: 1,
+                    deleted: 1,
+                    modified: 1,
+                },
+            },
+            false
+        );
+    }
+
     dangerCheck() {
         const max = 15;
         let counter = 0;

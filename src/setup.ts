@@ -8,134 +8,138 @@ import { Status } from "./const";
 import { DailyNoteManager } from "./dailynote";
 
 export async function launcher(plugin: Cloudr) {
-  await plugin.loadSettings();
-  plugin.doLog = false;
+    await plugin.loadSettings();
+    plugin.doLog = false;
 
-  // plugin adds a settings tab so the user can configure various aspects of the plugin
-  plugin.addSettingTab(new CloudrSettingsTab(plugin.app, plugin));
+    // plugin adds a settings tab so the user can configure various aspects of the plugin
+    plugin.addSettingTab(new CloudrSettingsTab(plugin.app, plugin));
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  plugin.settingPrivate = (this.app as any).setting;
-  plugin.tempExcludedFiles = {};
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    plugin.settingPrivate = (this.app as any).setting;
+    plugin.tempExcludedFiles = {};
 
-  plugin.compare = new Compare(plugin);
-  plugin.checksum = new Checksum(plugin);
-  plugin.operations = new Operations(plugin);
-  plugin.dailyNote = new DailyNoteManager(plugin);
+    plugin.compare = new Compare(plugin);
+    plugin.checksum = new Checksum(plugin);
+    plugin.operations = new Operations(plugin);
+    plugin.dailyNote = new DailyNoteManager(plugin);
 
-  plugin.mobile = Platform.isMobileApp;
-  plugin.settings.exclusionsOverride = false;
-  plugin.setBaseWebdav();
-  plugin.prevPath = `${plugin.app.vault.configDir}/plugins/webdav/prevdata.json`;
-  // console.log(plugin.prevPath)
+    plugin.mobile = Platform.isMobileApp;
+    plugin.settings.exclusionsOverride = false;
+    plugin.setBaseWebdav();
+    plugin.prevPath = `${plugin.app.vault.configDir}/plugins/webdav/prevdata.json`;
+    // console.log(plugin.prevPath)
 
-  plugin.allFiles = {
-    local: {},
-    webdav: {},
-  };
-
-  if (plugin.settings.enableRibbons) {
-    plugin.addRibbonIcon("calendar", "Open Daily Note with Webdav", (event: MouseEvent) => {
-      let middleCick = false;
-      if (event.button === 1) {
-        event.preventDefault();
-        middleCick = true;
-      }
-
-      plugin.dailyNote.dailyNote(middleCick);
-    });
-
-    plugin.addRibbonIcon("arrow-down-up", "SYNC with Webdav", () => {
-      plugin.operations.fullSync();
-    });
-
-    plugin.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
-      plugin.displayModal();
-    });
-  }
-
-  try {
-    plugin.prevData = JSON.parse(await plugin.app.vault.adapter.read(plugin.prevPath));
-    // prevData.date = new Date(prevData.date)
-    // plugin.prevData = prevData
-
-    plugin.log("PREVDATA LOADED: ", plugin.prevData);
-  } catch (error) {
-    plugin.prevData = {
-      error: true,
-      files: {},
-      date: Date.now(),
-      except: {},
+    plugin.allFiles = {
+        local: {},
+        webdav: {},
     };
 
-    plugin.app.vault.adapter.write(plugin.prevPath, JSON.stringify(plugin.prevData, null, 2));
-    console.error("ERROR LOADING PREVIOUS DATA! RESET prevdata.json to {error: true, files: {}} \n", error);
-    plugin.show("Failed to read previous data\nThis is to be expected if the plugin is new", 5000);
-  }
+    if (plugin.settings.enableRibbons) {
+        plugin.addRibbonIcon("calendar", "Open Daily Note with Webdav", (event: MouseEvent) => {
+            let middleCick = false;
+            if (event.button === 1) {
+                event.preventDefault();
+                middleCick = true;
+            } else if (event.button === 0 && event.ctrlKey) {
+                event.preventDefault();
+                middleCick = true;
+            }
 
-  // plugin adds a status bar item to the bottom of the app. Does not work on mobile apps.
+            plugin.dailyNote.dailyNote(middleCick);
+        });
 
-  plugin.statusBar = plugin.addStatusBarItem();
+        plugin.addRibbonIcon("arrow-down-up", "Check and Sync with Webdav", async () => {
+            await plugin.operations.check();
+            await plugin.operations.fullSync();
+        });
 
-  plugin.statusBar2 = plugin.addStatusBarItem();
-  plugin.statusBar2.setText("");
+        plugin.addRibbonIcon("settings-2", "Open WebDav Control Panel", () => {
+            plugin.displayModal();
+        });
+    }
 
-  plugin.loadingTotal = -1;
+    try {
+        plugin.prevData = JSON.parse(await plugin.app.vault.adapter.read(plugin.prevPath));
+        // prevData.date = new Date(prevData.date)
+        // plugin.prevData = prevData
 
-  // In your main plugin class
-  plugin.statusBar = plugin.addStatusBarItem();
-  plugin.statusBar.addClass("plugin-sync"); // Main container class
-  plugin.statusBar.setAttribute("aria-label", "Uninitialized");
-  plugin.statusBar.setAttribute("data-tooltip-position", "top");
+        plugin.log("PREVDATA LOADED: ", plugin.prevData);
+    } catch (error) {
+        plugin.prevData = {
+            error: true,
+            files: {},
+            date: Date.now(),
+            except: {},
+        };
 
-  // Create inner container
-  const innerDiv = plugin.statusBar.createDiv("status-bar-item-segment");
+        plugin.app.vault.adapter.write(plugin.prevPath, JSON.stringify(plugin.prevData, null, 2));
+        console.error("ERROR LOADING PREVIOUS DATA! RESET prevdata.json to {error: true, files: {}} \n", error);
+        plugin.show("Failed to read previous data\nThis is to be expected if the plugin is new", 5000);
+    }
 
-  // Create span for icon
-  plugin.iconSpan = innerDiv.createSpan({
-    cls: ["status-bar-item-icon", "sync-status-icon"],
-  });
+    // plugin adds a status bar item to the bottom of the app. Does not work on mobile apps.
 
-  // Set the icon
-  setIcon(plugin.iconSpan, "refresh-cw-off");
+    plugin.statusBar = plugin.addStatusBarItem();
 
-  // Or if you need more control over the classes:
-  plugin.statusBar.addClass("status-bar-item", "plugin-sync");
+    plugin.statusBar2 = plugin.addStatusBarItem();
+    plugin.statusBar2.setText("");
 
-  // Or more Obsidian-style
-  plugin.statusBar.onClickEvent(() => {
-    // Your click handler
-    plugin.displayModal();
-  });
+    plugin.loadingTotal = -1;
 
-  plugin.addCommand({
-    id: "daily-note",
-    name: "Create Daily Note with Webdav",
-    icon: "calendar",
-    callback: async () => {
-      plugin.dailyNote.dailyNote();
-    },
-  });
+    // In your main plugin class
+    plugin.statusBar = plugin.addStatusBarItem();
+    plugin.statusBar.addClass("plugin-sync"); // Main container class
+    plugin.statusBar.setAttribute("aria-label", "Uninitialized");
+    plugin.statusBar.setAttribute("data-tooltip-position", "top");
 
-  plugin.addCommand({
-    id: "display-webdav-modal",
-    name: "Open Webdav Control Panel modal",
-    icon: "settings-2",
-    callback: async () => {
-      plugin.displayModal();
-    },
-  });
+    // Create inner container
+    const innerDiv = plugin.statusBar.createDiv("status-bar-item-segment");
 
-  plugin.addCommand({
-    id: "webdav-check",
-    name: "Check for file changes",
-    icon: "search",
-    callback: async () => {
-      plugin.operations.check();
-    },
-  });
+    // Create span for icon
+    plugin.iconSpan = innerDiv.createSpan({
+        cls: ["status-bar-item-icon", "sync-status-icon"],
+    });
 
-  /*
+    // Set the icon
+    setIcon(plugin.iconSpan, "refresh-cw-off");
+
+    // Or if you need more control over the classes:
+    plugin.statusBar.addClass("status-bar-item", "plugin-sync");
+
+    // Or more Obsidian-style
+    plugin.statusBar.onClickEvent(() => {
+        // Your click handler
+        plugin.displayModal();
+    });
+
+    plugin.addCommand({
+        id: "daily-note",
+        name: "Create Daily Note with Webdav",
+        icon: "calendar",
+        callback: async () => {
+            plugin.dailyNote.dailyNote();
+        },
+    });
+
+    plugin.addCommand({
+        id: "display-webdav-modal",
+        name: "Open Webdav Control Panel modal",
+        icon: "settings-2",
+        callback: async () => {
+            plugin.displayModal();
+        },
+    });
+
+    plugin.addCommand({
+        id: "webdav-check",
+        name: "Check for file changes",
+        icon: "search",
+        callback: async () => {
+            plugin.operations.check();
+        },
+    });
+
+    /*
     plugin.addCommand({
         id: "webdav-push",
         name: "Force PUSH all File changes",
@@ -153,49 +157,59 @@ export async function launcher(plugin: Cloudr) {
     });
     */
 
-  plugin.addCommand({
-    id: "webdav-fullsync",
-    name: "Full Sync",
-    icon: "arrow-down-up",
-    callback: async () => {
-      plugin.operations.fullSync();
-    },
-  });
+    plugin.addCommand({
+        id: "webdav-fullsync",
+        name: "Full Sync",
+        icon: "arrow-down-up",
+        callback: async () => {
+            await plugin.operations.fullSync();
+        },
+    });
 
-  plugin.addCommand({
-    id: "save-prev",
-    name: "Save State",
-    callback: async () => {
-      plugin.saveState();
-    },
-  });
+    plugin.addCommand({
+        id: "webdav-check-fullsync",
+        name: "Check and Full Sync",
+        icon: "arrow-down-up",
+        callback: async () => {
+            await plugin.operations.check(false, true);
+            await plugin.operations.fullSyncSilent();
+        },
+    });
 
-  plugin.addCommand({
-    id: "reset-error",
-    name: "Reset Error state",
-    callback: async () => {
-      // plugin.prevData.error= false
-      plugin.setError(false);
-    },
-  });
+    plugin.addCommand({
+        id: "save-prev",
+        name: "Save State",
+        callback: async () => {
+            plugin.saveState();
+        },
+    });
 
-  plugin.addCommand({
-    id: "toggle-pause",
-    name: "Toggle Pause for all activities",
-    icon: "pause",
-    callback: () => {
-      plugin.togglePause();
-    },
-  });
+    plugin.addCommand({
+        id: "reset-error",
+        name: "Reset Error state",
+        callback: async () => {
+            // plugin.prevData.error= false
+            plugin.setError(false);
+        },
+    });
 
-  plugin.setStatus(Status.NONE);
-  plugin.setClient();
+    plugin.addCommand({
+        id: "toggle-pause",
+        name: "Toggle Pause for all activities",
+        icon: "pause",
+        callback: () => {
+            plugin.togglePause();
+        },
+    });
 
-  if (plugin.settings.liveSync) {
-    plugin.setLiveSync();
-  }
+    plugin.setStatus(Status.NONE);
+    plugin.setClient();
 
-  if (plugin.settings.autoSync) {
-    plugin.setAutoSync();
-  }
+    if (plugin.settings.liveSync) {
+        plugin.setLiveSync();
+    }
+
+    if (plugin.settings.autoSync) {
+        plugin.setAutoSync();
+    }
 }
