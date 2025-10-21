@@ -1,14 +1,14 @@
 import { TFile, moment, normalizePath } from "obsidian";
 import Cloudr from "./main";
-import { createFolderIfNotExists } from "./util";
-import { Status } from "./const";
+import { createFolderIfNotExists, logNotice } from "./util";
+import { Status, STATUS_ITEMS } from "./const";
 
 export class DailyNoteManager {
-    private ignoreConnection: boolean;
+    private ignoreConnection: boolean; //currently unused
 
     constructor(private plugin: Cloudr) {
         this.plugin = plugin;
-        this.ignoreConnection = false;
+        this.ignoreConnection = false; //set statically
     }
 
     /**
@@ -107,15 +107,19 @@ export class DailyNoteManager {
      * Fetches daily note content from WebDAV server
      */
     async getDailyNoteRemotely(dailyNotePath: string): Promise<string | undefined> {
-        if (await this.plugin.webdavClient.exists(normalizePath(this.plugin.baseWebdav + "/" + dailyNotePath))) {
-            const response = await this.plugin.webdavClient.get(normalizePath(this.plugin.baseWebdav + "/" + dailyNotePath));
-            if (response.status === 200 && response.data) {
-                return new TextDecoder().decode(response.data);
+        try {
+            if (await this.plugin.webdavClient.exists(normalizePath(this.plugin.baseWebdav + "/" + dailyNotePath))) {
+                const response = await this.plugin.webdavClient.get(normalizePath(this.plugin.baseWebdav + "/" + dailyNotePath));
+                if (response.status === 200 && response.data) {
+                    return new TextDecoder().decode(response.data);
+                } else {
+                    console.error("Daily Note: no connection possible");
+                }
             } else {
-                console.error("Daily Note: no connection possible");
+                console.log("Daily Note: File doesnt exist remotely!");
             }
-        } else {
-            console.log("Daily Note: File doesnt exist remotely!");
+        } catch (error) {
+            console.log("Daily Note: Failed to fetch remote content due to connection error:", error);
         }
         return undefined;
     }
@@ -125,97 +129,152 @@ export class DailyNoteManager {
     }
 
     /**
+     * Establishes connection with retry logic
+     */
+    private async establishConnection(): Promise<boolean> {
+        const maxRetries = 5;
+        const timeout = 2000; // 500ms timeout
+        let retryCount = 0;
+        let connected: boolean | unknown = false;
+
+        while (retryCount < maxRetries && !connected) {
+            try {
+                connected = await Promise.race([
+                    this.plugin.webdavClient.exists(this.plugin.settings.webdavPath),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error("Connection timeout")), timeout)),
+                ]);
+
+                if (connected) break;
+            } catch (error) {
+                console.log(`Connection attempt ${retryCount + 1} failed: ${error.message}`);
+            }
+            retryCount++;
+            logNotice(`Connection attempt ${retryCount}/${maxRetries} failed ⌛`, 1800);
+
+            if (retryCount <= maxRetries && !connected) {
+                await new Promise((resolve) => setTimeout(resolve, timeout));
+            }
+        }
+
+        return !!connected;
+    }
+
+    /**
+     * Handles offline status checks and existing file opening
+     */
+    private async handleOfflineStatus(middleClick: boolean): Promise<boolean> {
+        const folder = this.plugin.settings.dailyNotesFolder;
+        const format = this.plugin.settings.dailyNotesFormat;
+        const { filePath } = this.getDailyNotePath(folder, format);
+
+        // Check if daily note already exists locally
+        const existingFile = this.plugin.app.vault.getAbstractFileByPath(filePath);
+        if (existingFile instanceof TFile) {
+            logNotice("Opening existing daily note\nCurrently not online ");
+            await this.plugin.app.workspace.getLeaf(middleClick).openFile(existingFile);
+            return true; // Handled offline case
+        } else {
+            logNotice("Cant use Daily Notes feature: Status must be " + Status.NONE);
+            return true; // Can't proceed
+        }
+    }
+
+    /**
+     * Handles connection failure by checking for existing local file
+     */
+    private async handleConnectionFailure(middleClick: boolean): Promise<boolean> {
+        const folder = this.plugin.settings.dailyNotesFolder;
+        const format = this.plugin.settings.dailyNotesFormat;
+        const { filePath } = this.getDailyNotePath(folder, format);
+
+        const existingFile = this.plugin.app.vault.getAbstractFileByPath(filePath);
+        if (existingFile instanceof TFile) {
+            logNotice(
+                "Opening existing daily note\nCurrently NO INTERNET CONNECTION!🚩\nContent could be older than remote!\nMERGE CONTENT MANUALLY!",
+                8000
+            );
+
+            await this.plugin.app.workspace.getLeaf(middleClick).openFile(existingFile);
+            return true; // Handled with existing file
+        } else {
+            logNotice("No internet connection.\nClick Daily Notes again to FORCE new note without connecting to server.", 8000);
+            this.ignoreConnection = true;
+            return true; // Can't proceed
+        }
+    }
+
+    /**
+     * Opens the daily note and adds timestamp if configured
+     */
+    private async openNoteWithTimestamp(file: TFile, middleClick: boolean, usedTemplate?: boolean): Promise<void> {
+        await this.plugin.app.workspace.getLeaf(middleClick).openFile(file);
+
+        const editor = this.plugin.app.workspace.activeEditor?.editor;
+
+        if (editor && this.plugin.settings.dailyNotesTimestamp && usedTemplate !== true) {
+            let lastLine = editor.lastLine();
+            const lastLineContent = editor.getLine(lastLine);
+            editor.setLine(lastLine, lastLineContent + `\n\n${moment().format("HH:mm")} - `);
+            lastLine = editor.lastLine();
+            const lastLineLength = editor.getLine(lastLine).length;
+            editor.setCursor({ line: lastLine, ch: lastLineLength });
+        }
+    }
+
+    private getDailyNotePathInfo() {
+        const folder = this.plugin.settings.dailyNotesFolder;
+        const format = this.plugin.settings.dailyNotesFormat;
+        return this.getDailyNotePath(folder, format);
+    }
+
+    /**
      * Main function to create/sync daily note
      */
-    async dailyNote(middleCick = false) {
-        if (!this.ignoreConnection && this.plugin.status !== Status.NONE) {
-            this.plugin.show("Cant use Daily Notes feature: Status must be " + Status.NONE);
-            return;
-        }
+    async dailyNote(middleClick = false) {
         try {
-            // Check internet connection
-            // const existBool = await this.plugin.webdavClient.exists(this.plugin.settings.webdavPath);
+            // Handle offline scenarios
+            if (this.plugin.status === Status.ERROR) {
+                logNotice("Error detected! ❌\nClear error in webdav control modal and try to get Daily Note again!");
+                // this.plugin.show(this.plugin.message, 5000);
+                return;
+            }
 
-            // Connection check with retries
             if (!this.ignoreConnection) {
-                const maxRetries = 3;
-                const timeout = 500; // 500ms timeout
-                let retryCount = 0;
-                let connected: boolean | unknown = false;
-
-                while (retryCount <= maxRetries && !connected) {
-                    try {
-                        // Try to test connection with timeout
-                        connected = await Promise.race([
-                            this.plugin.webdavClient.exists(this.plugin.settings.webdavPath),
-                            new Promise((_, reject) => setTimeout(() => reject(new Error("Connection timeout")), timeout)),
-                        ]);
-
-                        if (connected) break;
-                    } catch (error) {
-                        console.log(`Connection attempt ${retryCount + 1} failed: ${error.message}`);
-                    }
-
-                    retryCount++;
-
-                    // If not the last retry, wait before trying again
-                    if (retryCount <= maxRetries && !connected) {
-                        await new Promise((resolve) => setTimeout(resolve, timeout));
+                if (this.plugin.status !== Status.NONE && this.plugin.status !== Status.OFFLINE) {
+                    const waitTime = 3;
+                    logNotice(
+                        `Webdav plugin currently busy with ${STATUS_ITEMS[this.plugin.status].label} ${this.plugin.status}!\nTrying automatically again in ${waitTime} seconds ...`,
+                        1000 * waitTime
+                    );
+                    await sleep(1000 * waitTime);
+                    //@ts-ignore
+                    if (this.plugin.status !== Status.NONE) {
+                        this.plugin.show(
+                            `Webdav plugin currently busy with ${STATUS_ITEMS[this.plugin.status].label} ${this.plugin.status}!\nTry again later - check statusbar icon for info!`
+                        );
+                        return;
                     }
                 }
+                const connected = await this.establishConnection();
                 if (!connected) {
-                    this.plugin.show("No internet connection. Click Daily Notes again to force new note without connecting to server.");
-                    this.ignoreConnection = true;
-                    return;
+                    if (await this.handleConnectionFailure(middleClick)) {
+                        return;
+                    }
                 }
             }
 
             this.ignoreConnection = false;
+            const { filePath, folderPath } = this.getDailyNotePathInfo();
 
-            // Consider moving these to plugin settings
-            // const folder = "Daily Notes";
-            // const format = "YYYY/YYYY-MM/YYYY-MM-DD ddd";
-            const folder = this.plugin.settings.dailyNotesFolder;
-            const format = this.plugin.settings.dailyNotesFormat;
-
-            const { filePath, folderPath } = this.getDailyNotePath(folder, format);
-
-            // Ensure folder exists before proceeding
             await createFolderIfNotExists(this.plugin.app.vault, folderPath);
 
-            // let remoteContent: string | undefined = undefined;
-            // if (!this.ignoreConnection) {
-            // Get remote content first
             const remoteContent = await this.getDailyNoteRemotely(filePath);
-
-            // Create or update the note
             const [dailyNote, usedTemplate] = await this.getDailyNote(filePath, remoteContent);
 
-            // Open the note
-            await this.plugin.app.workspace.getLeaf(middleCick).openFile(dailyNote);
-            // Get the active editor
-            const editor = this.plugin.app.workspace.activeEditor?.editor;
-
-            if (editor && this.plugin.settings.dailyNotesTimestamp && usedTemplate !== true) {
-                // Get the last line index
-                // const lastLine = editor.lineCount() - 1;
-                let lastLine = editor.lastLine();
-
-                // Get the content of the last line
-                const lastLineContent = editor.getLine(lastLine);
-
-                // Append the timestamp to the existing content
-                editor.setLine(lastLine, lastLineContent + `\n\n${moment().format("HH:mm")} - `);
-
-                lastLine = editor.lastLine();
-
-                const lastLineLength = editor.getLine(lastLine).length;
-
-                // Set the cursor to the end of the last line
-                editor.setCursor({ line: lastLine, ch: lastLineLength });
-            }
+            await this.openNoteWithTimestamp(dailyNote, middleClick, usedTemplate);
         } catch (err) {
             console.error("Failed to create/open daily note:", err);
+            logNotice(`Daily note operation failed: ${err.message}`);
             throw new Error(`Daily note operation failed: ${err.message}`);
         }
     }

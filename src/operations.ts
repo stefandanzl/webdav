@@ -1,8 +1,8 @@
 import Cloudr from "./main";
 import { WebDAVClient } from "./webdav";
-import { join, dirname, calcDuration } from "./util";
+import { join, dirname, calcDuration, logNotice } from "./util";
 import { normalizePath } from "obsidian";
-import { Controller, FileList, Status } from "./const";
+import { Controller, FileList, Status, STATUS_ITEMS } from "./const";
 
 const WEBDAV_HEADERS = { "Cache-Control": "no-cache, no-store, must-revalidate" };
 
@@ -311,7 +311,10 @@ export class Operations {
             response = await this.test(false, true);
             if (!response) {
                 // throw new Error("Testing failed, can't continue Check action!");
-                this.plugin.log("Testing failed, can't continue Check action!");
+                show &&
+                    logNotice(
+                        `Testing failed, can't continue Check action!\nStatus: ${STATUS_ITEMS[this.plugin.status].label} ${this.plugin.status}`
+                    );
                 return false;
             }
 

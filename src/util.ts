@@ -1,5 +1,5 @@
 import { FileTree } from "./const";
-import { Vault } from "obsidian";
+import { Notice, Vault } from "obsidian";
 
 export const join = (...args: string[]) => {
     const separator = "/"; // Change this to '\\' for backslash on Windows
@@ -107,4 +107,15 @@ export function calcDuration(time: number) {
     const now = Date.now();
     const duration = now - time;
     return duration / 1000;
+}
+
+// Already implemented by Obsidian API
+export function sleep(ms: number) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export function logNotice(message: string, ms?: number) {
+    const duration = ms != undefined ? ms : 8000;
+    new Notice(message, duration);
+    console.log(message);
 }

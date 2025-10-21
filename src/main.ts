@@ -11,6 +11,7 @@ import { FileList, PreviousObject, Status, CloudrSettings, DEFAULT_SETTINGS, STA
 import { DailyNoteManager } from "./dailynote";
 
 export default class Cloudr extends Plugin {
+    message: string | Array<string[]> | string[] | unknown[];
     doLog: boolean;
     settings: CloudrSettings;
     compare: Compare;
@@ -76,6 +77,7 @@ export default class Cloudr extends Plugin {
          *
          */
         // const doLog = true;
+        this.message = text;
         if (this.doLog) {
             console.log(...text);
         }
