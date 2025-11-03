@@ -47,6 +47,7 @@ export class WebDAVClient {
             method: "GET",
             headers: {
                 Authorization: this.createAuthHeader(),
+                "Cache-Control": "no-cache, no-store, must-revalidate",
             },
         });
         // if (response.status === 200)
@@ -73,6 +74,7 @@ export class WebDAVClient {
                 Authorization: this.createAuthHeader(),
                 Depth: depth || "0",
                 "Content-Type": "application/xml",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
             },
             body: `<?xml version="1.0" encoding="utf-8" ?>
                 <propfind xmlns="DAV:">
@@ -105,6 +107,7 @@ export class WebDAVClient {
                 headers: {
                     Authorization: this.createAuthHeader(),
                     "Content-Type": content instanceof ArrayBuffer ? "application/octet-stream" : "text/plain",
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
                     // Translate: "f", // Tell WebDAV not to do URL translation
                 },
                 body: content,
@@ -134,6 +137,7 @@ export class WebDAVClient {
                 method: "DELETE",
                 headers: {
                     Authorization: this.createAuthHeader(),
+                    "Cache-Control": "no-cache, no-store, must-revalidate",
                 },
             });
             return response.status;
@@ -151,6 +155,7 @@ export class WebDAVClient {
                 Authorization: this.createAuthHeader(),
                 Destination: this.createFullUrl(destinationPath),
                 Overwrite: overwrite ? "T" : "F",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
             },
         });
     }
@@ -163,6 +168,7 @@ export class WebDAVClient {
                 Authorization: this.createAuthHeader(),
                 Destination: this.createFullUrl(destinationPath),
                 Overwrite: overwrite ? "T" : "F",
+                "Cache-Control": "no-cache, no-store, must-revalidate",
             },
         });
     }
@@ -173,6 +179,7 @@ export class WebDAVClient {
             method: "MKCOL",
             headers: {
                 Authorization: this.createAuthHeader(),
+                "Cache-Control": "no-cache, no-store, must-revalidate",
             },
         });
     }
