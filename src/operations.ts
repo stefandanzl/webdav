@@ -1,10 +1,8 @@
 import Cloudr from "./main";
-import { WebDAVClient } from "./webdav";
+import { WebDAVClient, WEBDAV_HEADERS } from "./webdav";
 import { join, dirname, calcDuration, logNotice } from "./util";
 import { normalizePath } from "obsidian";
 import { Controller, FileList, Status, STATUS_ITEMS } from "./const";
-
-const WEBDAV_HEADERS = { "Cache-Control": "no-cache, no-store, must-revalidate" };
 
 export class Operations {
     constructor(public plugin: Cloudr) {
